@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import TransactionForm from "../transactions/TransactionForm";
 import TransactionList from "../transactions/TransactionList";
 import BudgetForm from "../budgets/BudgetForm";
+import BudgetTracker from "../budgets/BudgetTracker";
 
 interface DashboardProps {
   user: User;
@@ -54,8 +55,8 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card className="w-full animate-fade-in shadow-xl h-full">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="w-full animate-fade-in shadow-xl">
             <CardHeader>
               <CardTitle>Recent Transactions</CardTitle>
               <CardDescription>A list of your most recent transactions.</CardDescription>
@@ -64,6 +65,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
               <TransactionList />
             </CardContent>
           </Card>
+          <BudgetTracker />
         </div>
         <div className="space-y-6">
           <Card className="w-full animate-fade-in shadow-xl">

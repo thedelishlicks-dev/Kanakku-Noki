@@ -13,6 +13,7 @@ import {
 import { LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import TransactionForm from "../transactions/TransactionForm";
+import TransactionList from "../transactions/TransactionList";
 
 interface DashboardProps {
   user: User;
@@ -62,6 +63,15 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         </CardHeader>
         <CardContent>
           <TransactionForm />
+        </CardContent>
+      </Card>
+      <Card className="w-full animate-fade-in shadow-xl">
+        <CardHeader>
+          <CardTitle>Recent Transactions</CardTitle>
+          <CardDescription>A list of your most recent transactions.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TransactionList />
         </CardContent>
       </Card>
     </div>

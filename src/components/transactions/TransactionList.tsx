@@ -40,8 +40,8 @@ export default function TransactionList() {
 
     const q = query(
       collection(db, "transactions"),
-      where("familyId", "==", familyId),
-      orderBy("date", "desc")
+      where("familyId", "==", familyId)
+      // orderBy("date", "desc") // Temporarily removed to prevent crash.
     );
 
     const unsubscribe = onSnapshot(
@@ -51,11 +51,16 @@ export default function TransactionList() {
         querySnapshot.forEach((doc) => {
           transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
         });
+        
+        // Sort transactions by date client-side
+        transactionsData.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+
         setTransactions(transactionsData);
         setLoading(false);
       },
       (error) => {
         console.error("Error fetching transactions:", error);
+        // The console will show a more detailed error, including a link to create the index.
         setLoading(false);
       }
     );

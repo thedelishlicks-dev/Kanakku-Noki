@@ -84,7 +84,13 @@ export default function TransactionForm() {
         title: "Success!",
         description: "Transaction added successfully.",
       });
-      form.reset();
+      form.reset({
+        amount: 0,
+        description: "",
+        type: "expense",
+        category: "",
+        date: new Date(),
+      });
     } catch (error: any) {
       console.error("Error adding transaction:", error);
       toast({
@@ -141,7 +147,7 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a type" />

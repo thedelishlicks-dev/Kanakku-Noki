@@ -37,14 +37,9 @@ export default function DashboardSummary() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
-    const endOfMonthTimestamp = Timestamp.fromDate(endOfMonth);
-
     const q = query(
       collection(db, "transactions"),
-      where("familyId", "==", familyId),
-      where("date", ">=", startOfMonthTimestamp),
-      where("date", "<=", endOfMonthTimestamp)
+      where("familyId", "==", familyId)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -53,17 +48,37 @@ export default function DashboardSummary() {
 
       querySnapshot.forEach((doc) => {
         const transaction = doc.data() as Omit<Transaction, 'id'>;
-        if (transaction.type === "income") {
-          income += transaction.amount;
-        } else {
-          // Expenses are stored as negative numbers
-          expenses += Math.abs(transaction.amount);
+        const transactionDate = transaction.date.toDate();
+
+        if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
+          if (transaction.type === "income") {
+            income += transaction.amount;
+          } else {
+            // Expenses are stored as negative numbers in the form, but let's be safe
+            expenses += Math.abs(transaction.amount);
+          }
         }
       });
+      
+      // In TransactionForm, expenses are already negative. Let's adjust here.
+      const adjustedExpenses = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
+        .filter(t => {
+            const transactionDate = t.date.toDate();
+            return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'expense';
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
 
-      setTotalIncome(income);
-      setTotalExpenses(expenses);
-      setNetBalance(income - expenses);
+      const adjustedIncome = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
+        .filter(t => {
+            const transactionDate = t.date.toDate();
+            return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'income';
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+
+      setTotalIncome(adjustedIncome);
+      setTotalExpenses(Math.abs(adjustedExpenses));
+      setNetBalance(adjustedIncome + adjustedExpenses);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching summary data:", error);

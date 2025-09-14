@@ -28,52 +28,50 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full max-w-4xl space-y-6">
       <Card className="w-full animate-fade-in shadow-xl">
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 text-lg">
-              <AvatarImage src={user.photoURL || undefined} alt="User avatar" />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials(user.email)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 overflow-hidden">
-              <CardTitle className="text-2xl font-headline">Welcome!</CardTitle>
-              <CardDescription className="truncate">{user.email}</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-12 w-12 text-lg">
+                <AvatarImage src={user.photoURL || undefined} alt="User avatar" />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {getInitials(user.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-xl font-headline">Welcome Back!</CardTitle>
+                <CardDescription className="truncate">{user.email}</CardDescription>
+              </div>
             </div>
+            <Button onClick={onSignOut} variant="outline" size="sm">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            You have successfully logged in. This is your personal dashboard where you can manage your account and explore features.
-          </p>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={onSignOut} variant="outline" className="w-full">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
-        </CardFooter>
       </Card>
-      <Card className="w-full animate-fade-in shadow-xl">
-        <CardHeader>
-          <CardTitle>Add New Transaction</CardTitle>
-          <CardDescription>Enter the details of your transaction below.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TransactionForm />
-        </CardContent>
-      </Card>
-      <Card className="w-full animate-fade-in shadow-xl">
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>A list of your most recent transactions.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TransactionList />
-        </CardContent>
-      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="w-full animate-fade-in shadow-xl">
+          <CardHeader>
+            <CardTitle>Add New Transaction</CardTitle>
+            <CardDescription>Enter the details of your transaction below.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TransactionForm />
+          </CardContent>
+        </Card>
+        <Card className="w-full animate-fade-in shadow-xl">
+          <CardHeader>
+            <CardTitle>Recent Transactions</CardTitle>
+            <CardDescription>A list of your most recent transactions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TransactionList />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

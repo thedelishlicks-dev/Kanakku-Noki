@@ -46,14 +46,20 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4 md:p-8">
+      <div className="w-full">
         {user ? (
-          <Dashboard user={user} onSignOut={handleSignOut} />
-        ) : view === "login" ? (
-          <Login onSwitchToSignUp={() => setView("signup")} />
+          <div className="flex justify-center">
+            <Dashboard user={user} onSignOut={handleSignOut} />
+          </div>
         ) : (
-          <SignUp onSwitchToLogin={() => setView("login")} />
+          <div className="mx-auto w-full max-w-md">
+            {view === "login" ? (
+              <Login onSwitchToSignUp={() => setView("signup")} />
+            ) : (
+              <SignUp onSwitchToLogin={() => setView("login")} />
+            )}
+          </div>
         )}
       </div>
     </main>

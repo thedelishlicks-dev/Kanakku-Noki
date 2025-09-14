@@ -1,21 +1,20 @@
-// src/firebase.js
-import { initializeApp } from 'firebase/app';
+// src/lib/firebase.ts
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyC_UHYdr94bhW7nNLT3rFNzyuZFG1Pyofg",
-  authDomain: "family-finance-97bcf.firebaseapp.com",
-  projectId: "family-finance-97bcf",
-  storageBucket: "family-finance-97bcf.firebasestorage.app",
-  messagingSenderId: "596902443557",
-  appId: "1:596902443557:web:7f6fb0f556e50409e25dcc"
+  apiKey: "AIzaSyDA3vmqGBPIOR9SeSXb9HMy8j2ZEaLNjpQ",
+  authDomain: "studio-2264868096-7e706.firebaseapp.com",
+  projectId: "studio-2264868096-7e706",
+  storageBucket: "studio-2264868096-7e706.firebasestorage.app",
+  messagingSenderId: "240096414245",
+  appId: "1:240096414245:web:1794c36acd48c9a3d00dcc"
 };
 
-
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Get a reference to the services
 const db = getFirestore(app);

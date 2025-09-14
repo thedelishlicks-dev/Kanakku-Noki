@@ -63,10 +63,9 @@ export default function Login({ onSwitchToSignUp }: LoginProps) {
       if (error.code) {
         switch (error.code) {
           case 'auth/wrong-password':
-            errorMessage = 'Incorrect password. Please try again.';
-            break;
           case 'auth/user-not-found':
-            errorMessage = 'No user found with this email.';
+          case 'auth/invalid-credential':
+            errorMessage = 'Invalid email or password. Please try again.';
             break;
           case 'auth/invalid-email':
             errorMessage = 'The email address is not valid.';

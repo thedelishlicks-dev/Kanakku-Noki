@@ -59,10 +59,12 @@ export default function InviteMembers() {
           setFamilyId(currentFamilyId);
           
           const familyDocRef = doc(db, "families", currentFamilyId);
-          const familyDoc = await getDoc(familyDocRef);
-          if (familyDoc.exists()) {
-            setFamily(familyDoc.data() as Family);
-          }
+          const unsubscribe = onSnapshot(familyDocRef, (doc) => {
+            if (doc.exists()) {
+              setFamily(doc.data() as Family);
+            }
+          });
+          return () => unsubscribe();
         }
       }
     };
@@ -106,7 +108,7 @@ export default function InviteMembers() {
     });
 
     return () => unsubscribe();
-  }, [familyId]);
+  }, [familyId, toast]);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(formSchema),

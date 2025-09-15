@@ -22,19 +22,20 @@ const auth = getAuth(app);
 
 /**
  * Creates or updates a user document in Firestore.
- * If a familyId is provided (e.g., from an invitation), it will be added to the user's document.
- * If no familyId is provided and the user is new, a new familyId is created using the user's UID.
- * This function is designed to be idempotent.
+ * This function is designed to be idempotent and ensures every user has a familyId.
+ * - If the user is new, it creates a document with a new familyId (or the one from an invite).
+ * - If the user exists but lacks a familyId, it adds one.
+ * - If the user exists and has a familyId, it does nothing unless a new familyId is provided via invite.
  * @param user The Firebase user object.
- * @param familyId Optional familyId to associate with the user.
+ * @param familyId Optional familyId to associate with the user (typically from an invitation link).
  */
 export const upsertUserDocument = async (user: User, familyId: string | null = null) => {
   const userRef = doc(db, 'users', user.uid);
   const userDoc = await getDoc(userRef);
 
   if (!userDoc.exists()) {
-    // For a new user, if no familyId is passed (i.e., not from an invite),
-    // create a new family for them using their own UID as the familyId.
+    // Case 1: New user.
+    // Create a new family for them, using their own UID as the familyId, unless one is provided.
     const newFamilyId = familyId || user.uid;
     const userData = {
       email: user.email,
@@ -43,10 +44,16 @@ export const upsertUserDocument = async (user: User, familyId: string | null = n
       familyId: newFamilyId,
     };
     await setDoc(userRef, userData);
-  } else if (familyId && !userDoc.data().familyId) {
-    // If an existing user who doesn't have a familyId signs in via an invite link,
-    // add them to the family.
-    await setDoc(userRef, { familyId }, { merge: true });
+  } else {
+    const userData = userDoc.data();
+    if (familyId && !userData.familyId) {
+      // Case 2: Existing user without a family joins one via an invite link.
+      await setDoc(userRef, { familyId: familyId }, { merge: true });
+    } else if (!userData.familyId) {
+        // Case 3: Existing user without a family signs in normally.
+        // Create a new family for them.
+        await setDoc(userRef, { familyId: user.uid }, { merge: true });
+    }
   }
 };
 

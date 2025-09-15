@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { sendSignInLinkToEmail } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,7 +19,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
+import { Separator } from "../ui/separator";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Skeleton } from "../ui/skeleton";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -27,9 +30,16 @@ const formSchema = z.object({
 
 type InviteFormValues = z.infer<typeof formSchema>;
 
+interface Member {
+  id: string;
+  email: string | null;
+}
+
 export default function InviteMembers() {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,23 +50,49 @@ export default function InviteMembers() {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists() && userDoc.data().familyId) {
           setFamilyId(userDoc.data().familyId);
-        } else {
-          // This case is handled by the main dashboard logic, but we can keep a local check.
-          console.warn("User does not have a familyId.");
         }
       }
     };
     
-    const unsubscribe = auth.onAuthStateChanged(user => {
+    const unsubscribeAuth = auth.onAuthStateChanged(user => {
         if(user) {
             fetchFamilyId();
         } else {
             setFamilyId(null);
+            setMembers([]);
         }
     })
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (!familyId) {
+      setMembersLoading(false);
+      return;
+    }
+
+    setMembersLoading(true);
+    const membersQuery = query(collection(db, "users"), where("familyId", "==", familyId));
+    const unsubscribe = onSnapshot(membersQuery, (snapshot) => {
+      const membersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        email: doc.data().email || 'No Email',
+      }));
+      setMembers(membersData);
+      setMembersLoading(false);
+    }, (error) => {
+      console.error("Error fetching family members:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not fetch family members."
+      });
+      setMembersLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [familyId, toast]);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(formSchema),
@@ -78,17 +114,12 @@ export default function InviteMembers() {
     setLoading(true);
 
     const actionCodeSettings = {
-      // URL you want to redirect back to. The domain (www.example.com) must be authorized
-      // in the Firebase Console.
       url: `${window.location.origin}?familyId=${familyId}`,
       handleCodeInApp: true,
     };
 
     try {
       await sendSignInLinkToEmail(auth, values.email, actionCodeSettings);
-      // The link was successfully sent. Inform the user.
-      // Save the email locally so you don't need to ask the user for it again
-      // if they open the link on the same device.
       window.localStorage.setItem('emailForSignIn', values.email);
       
       toast({
@@ -109,31 +140,68 @@ export default function InviteMembers() {
     }
   }
 
+  const getInitials = (email: string | null) => {
+    if (!email) return "?";
+    const name = email.split('@')[0];
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email Address</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="member@example.com"
-                  {...field}
-                  disabled={loading || !familyId}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading || !familyId}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Send Invitation
-        </Button>
-      </form>
-    </Form>
+    <div className="space-y-6">
+      <div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="member@example.com"
+                      {...field}
+                      disabled={loading || !familyId}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading || !familyId}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Invitation
+            </Button>
+          </form>
+        </Form>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium flex items-center gap-2"><Users className="h-5 w-5" /> Family Members</h3>
+        {membersLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : members.length > 0 ? (
+          <ul className="space-y-3">
+            {members.map(member => (
+              <li key={member.id} className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarFallback className="bg-secondary text-secondary-foreground">
+                    {getInitials(member.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-muted-foreground truncate">{member.email}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center">Your family has no members yet.</p>
+        )}
+      </div>
+    </div>
   );
 }

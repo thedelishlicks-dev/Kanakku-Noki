@@ -19,6 +19,7 @@ import DashboardSummary from "./DashboardSummary";
 import GoalsTracker from "../goals/GoalsTracker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FinancialReports from "../reports/FinancialReports";
+import InviteMembers from "../family/InviteMembers";
 
 interface DashboardProps {
   user: User;
@@ -81,6 +82,15 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                 <BudgetTracker />
               </div>
               <div className="space-y-6">
+                 <Card className="w-full animate-fade-in shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Family Management</CardTitle>
+                    <CardDescription>Invite new members to your family.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <InviteMembers />
+                  </CardContent>
+                </Card>
                 <Card className="w-full animate-fade-in shadow-xl">
                   <CardHeader>
                     <CardTitle>Add New Transaction</CardTitle>

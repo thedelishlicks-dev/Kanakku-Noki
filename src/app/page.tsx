@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import type { User } from "firebase/auth";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+import { auth, upsertUserDocument } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Login from "@/components/auth/Login";
 import SignUp from "@/components/auth/SignUp";
@@ -17,10 +17,53 @@ export default function Home() {
   const { toast } = useToast();
 
   useEffect(() => {
+    const handleEmailLinkSignIn = async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          email = window.prompt('Please provide your email for confirmation');
+        }
+        if (email) {
+          try {
+            setLoading(true);
+            const result = await signInWithEmailLink(auth, email, window.location.href);
+            window.localStorage.removeItem('emailForSignIn');
+            
+            const url = new URL(window.location.href);
+            const familyId = url.searchParams.get('familyId');
+
+            if (result.user && familyId) {
+              await upsertUserDocument(result.user, familyId);
+              toast({
+                title: "Welcome to the family!",
+                description: "You've been successfully added to the family group.",
+              });
+            }
+             // The onAuthStateChanged listener below will handle setting the user and loading state.
+          } catch (error: any) {
+            console.error("Error signing in with email link:", error);
+            toast({
+              variant: "destructive",
+              title: "Sign In Failed",
+              description: "The sign-in link is invalid or has expired.",
+            });
+            setLoading(false);
+          }
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    
+    handleEmailLinkSignIn();
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+      if (loading && !isSignInWithEmailLink(auth, window.location.href)) {
+         setLoading(false);
+      }
     });
+
     return () => unsubscribe();
   }, []);
 

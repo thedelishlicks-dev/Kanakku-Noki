@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, upsertUserDocument } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,8 @@ export default function SignUp({ onSwitchToLogin }: SignUpProps) {
   async function onSubmit(values: SignUpFormValues) {
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      await upsertUserDocument(userCredential.user);
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred.";
       if (error.code) {

@@ -110,7 +110,7 @@ export default function TransactionList() {
         ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
-        goalId: editingTransaction.goalId || "",
+        goalId: editingTransaction.goalId || "none",
       });
     }
   }, [editingTransaction, form]);
@@ -144,7 +144,7 @@ export default function TransactionList() {
         amount: values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount),
       };
 
-      if (!values.goalId) {
+      if (!values.goalId || values.goalId === "none") {
         delete updatedData.goalId;
       }
 
@@ -387,7 +387,7 @@ export default function TransactionList() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {goals.map(goal => (
                             <SelectItem key={goal.id} value={goal.id}>{goal.goalName}</SelectItem>
                           ))}

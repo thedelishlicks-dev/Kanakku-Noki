@@ -101,7 +101,7 @@ export default function TransactionForm() {
       type: "expense",
       category: "",
       date: new Date(),
-      goalId: ""
+      goalId: "none"
     },
   });
 
@@ -134,7 +134,7 @@ export default function TransactionForm() {
         createdAt: new Date(),
       };
 
-      if (!values.goalId) {
+      if (!values.goalId || values.goalId === "none") {
         delete transactionData.goalId;
       }
 
@@ -150,7 +150,7 @@ export default function TransactionForm() {
         type: "expense",
         category: "",
         date: new Date(),
-        goalId: ""
+        goalId: "none"
       });
     } catch (error: any) {
       console.error("Error adding transaction:", error);
@@ -253,7 +253,7 @@ export default function TransactionForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {goals.map(goal => (
                     <SelectItem key={goal.id} value={goal.id}>{goal.goalName}</SelectItem>
                   ))}

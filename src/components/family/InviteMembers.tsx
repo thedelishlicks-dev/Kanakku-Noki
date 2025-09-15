@@ -36,30 +36,43 @@ interface Member {
   email: string | null;
 }
 
+interface Family {
+  inviteCode?: string;
+}
+
 export default function InviteMembers() {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
+  const [family, setFamily] = useState<Family | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchFamilyId = async () => {
+    const fetchFamilyInfo = async () => {
       const currentUser = auth.currentUser;
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists() && userDoc.data().familyId) {
-          setFamilyId(userDoc.data().familyId);
+          const currentFamilyId = userDoc.data().familyId;
+          setFamilyId(currentFamilyId);
+          
+          const familyDocRef = doc(db, "families", currentFamilyId);
+          const familyDoc = await getDoc(familyDocRef);
+          if (familyDoc.exists()) {
+            setFamily(familyDoc.data() as Family);
+          }
         }
       }
     };
     
     const unsubscribeAuth = auth.onAuthStateChanged(user => {
         if(user) {
-            fetchFamilyId();
+            fetchFamilyInfo();
         } else {
             setFamilyId(null);
+            setFamily(null);
             setMembers([]);
         }
     })
@@ -93,7 +106,7 @@ export default function InviteMembers() {
     });
 
     return () => unsubscribe();
-  }, [familyId, toast]);
+  }, [familyId]);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(formSchema),
@@ -142,8 +155,8 @@ export default function InviteMembers() {
   }
 
   const copyInviteCode = () => {
-    if (familyId) {
-      navigator.clipboard.writeText(familyId);
+    if (family?.inviteCode) {
+      navigator.clipboard.writeText(family.inviteCode);
       toast({
         title: "Copied!",
         description: "Invite code copied to clipboard.",
@@ -190,8 +203,8 @@ export default function InviteMembers() {
        <div className="space-y-2">
             <Label>Or Share Invite Code</Label>
             <div className="flex items-center space-x-2">
-                <Input value={familyId || "..."} readOnly disabled={!familyId} />
-                <Button variant="outline" size="icon" onClick={copyInviteCode} disabled={!familyId}>
+                <Input value={family?.inviteCode || "..."} readOnly disabled={!family?.inviteCode} />
+                <Button variant="outline" size="icon" onClick={copyInviteCode} disabled={!family?.inviteCode}>
                     <Copy className="h-4 w-4" />
                 </Button>
             </div>

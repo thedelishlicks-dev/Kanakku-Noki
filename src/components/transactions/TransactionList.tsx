@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, CalendarIcon, Loader2 } from "lucide-react";
+import { Edit, Trash2, CalendarIcon, Loader2, Flag, CheckCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +64,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Switch } from "../ui/switch";
+import { Label } from "../ui/label";
 
 interface Transaction {
   id: string;
@@ -73,6 +75,8 @@ interface Transaction {
   type: "income" | "expense";
   date: Timestamp;
   goalId?: string;
+  needsReview?: boolean;
+  reviewedBy?: string;
 }
 
 interface Goal {
@@ -93,16 +97,26 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 
 export default function TransactionList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [showNeedsReviewOnly, setShowNeedsReviewOnly] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
   });
+
+   useEffect(() => {
+    if (showNeedsReviewOnly) {
+      setFilteredTransactions(transactions.filter(t => t.needsReview));
+    } else {
+      setFilteredTransactions(transactions);
+    }
+  }, [showNeedsReviewOnly, transactions]);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -114,7 +128,6 @@ export default function TransactionList() {
       });
     }
   }, [editingTransaction, form]);
-
 
   const handleDelete = async (id: string) => {
     try {
@@ -132,6 +145,44 @@ export default function TransactionList() {
       });
     }
   };
+  
+  const handleFlagForReview = async (id: string) => {
+    const transactionRef = doc(db, "transactions", id);
+    try {
+      await updateDoc(transactionRef, { needsReview: true });
+      toast({
+        title: "Flagged",
+        description: "Transaction has been flagged for review.",
+      });
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not flag transaction for review.",
+      });
+    }
+  }
+
+  const handleMarkAsReviewed = async (id: string) => {
+    if (!auth.currentUser) return;
+    const transactionRef = doc(db, "transactions", id);
+    try {
+      await updateDoc(transactionRef, { 
+        needsReview: false,
+        reviewedBy: auth.currentUser.email 
+      });
+      toast({
+        title: "Reviewed",
+        description: "Transaction marked as reviewed.",
+      });
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not mark transaction as reviewed.",
+      });
+    }
+  }
 
   async function onUpdate(values: TransactionFormValues) {
     if (!editingTransaction) return;
@@ -259,13 +310,22 @@ export default function TransactionList() {
       </div>
     );
   }
-
-  if (transactions.length === 0) {
-    return <p className="text-center text-muted-foreground">No transactions found.</p>;
-  }
-
+  
   return (
     <>
+      <div className="flex items-center space-x-2 mb-4">
+        <Switch
+          id="review-filter"
+          checked={showNeedsReviewOnly}
+          onCheckedChange={setShowNeedsReviewOnly}
+        />
+        <Label htmlFor="review-filter">Show "Needs Review" only</Label>
+      </div>
+       {filteredTransactions.length === 0 ? (
+         <p className="text-center text-muted-foreground pt-4">
+            {showNeedsReviewOnly ? "No transactions need review." : "No transactions found."}
+         </p>
+       ) : (
       <ScrollArea className="h-[300px] w-full">
         <Table>
           <TableHeader>
@@ -274,11 +334,12 @@ export default function TransactionList() {
               <TableHead>Description</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-center">Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((transaction) => (
+            {filteredTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell className="text-muted-foreground">{formatDate(transaction.date)}</TableCell>
                 <TableCell className="font-medium">{transaction.description}</TableCell>
@@ -294,7 +355,25 @@ export default function TransactionList() {
                 >
                   {formatCurrency(transaction.amount)}
                 </TableCell>
+                <TableCell className="text-center">
+                    {transaction.needsReview ? (
+                         <Badge variant="destructive">Needs Review</Badge>
+                    ) : transaction.reviewedBy ? (
+                        <Badge variant="secondary">Reviewed</Badge>
+                    ) : (
+                         <Badge variant="outline">OK</Badge>
+                    )}
+                </TableCell>
                 <TableCell className="text-right">
+                  {transaction.needsReview ? (
+                    <Button variant="outline" size="sm" className="h-8 mr-1" onClick={() => handleMarkAsReviewed(transaction.id)}>
+                      <CheckCircle className="h-4 w-4 mr-1" /> Mark Reviewed
+                    </Button>
+                  ) : (
+                     <Button variant="outline" size="sm" className="h-8 mr-1" onClick={() => handleFlagForReview(transaction.id)}>
+                        <Flag className="h-4 w-4 mr-1" /> Flag
+                     </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTransaction(transaction); setIsDialogOpen(true); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -307,6 +386,7 @@ export default function TransactionList() {
           </TableBody>
         </Table>
       </ScrollArea>
+      )}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>

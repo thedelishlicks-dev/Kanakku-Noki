@@ -57,32 +57,44 @@ export default function Home() {
               title: "Sign In Failed",
               description: "The sign-in link is invalid or has expired.",
             });
+          } finally {
             setLoading(false);
           }
         }
       }
     };
     
-    handleEmailLinkSignIn();
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
-        setUserProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    handleEmailLinkSignIn().then(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          setUser(currentUser);
+          if (!currentUser) {
+            setUserProfile(null);
+            setLoading(false);
+          }
+        });
+        return () => unsubscribe();
+    })
+  }, [toast]);
 
   useEffect(() => {
     if (user) {
       const userDocRef = doc(db, "users", user.uid);
       const unsubscribe = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
-          setUserProfile(doc.data() as UserProfile);
+          const profileData = doc.data() as UserProfile;
+           if (!profileData.familyId) {
+             upsertUserDocument(user);
+             setUserProfile({ ...profileData, familyId: user.uid }); // Optimistically update
+           } else {
+             setUserProfile(profileData);
+           }
+        } else {
+           // This handles the case for users created before the onboarding flow was implemented.
+           upsertUserDocument(user);
         }
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching user profile:", error);
         setLoading(false);
       });
       return () => unsubscribe();

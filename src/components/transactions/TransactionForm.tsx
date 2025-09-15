@@ -101,7 +101,7 @@ export default function TransactionForm() {
       type: "expense",
       category: "",
       date: new Date(),
-      goalId: "none"
+      goalId: undefined,
     },
   });
 
@@ -134,7 +134,7 @@ export default function TransactionForm() {
         createdAt: new Date(),
       };
 
-      if (!values.goalId || values.goalId === "none") {
+      if (!values.goalId) {
         delete transactionData.goalId;
       }
 
@@ -150,7 +150,7 @@ export default function TransactionForm() {
         type: "expense",
         category: "",
         date: new Date(),
-        goalId: "none"
+        goalId: undefined,
       });
     } catch (error: any) {
       console.error("Error adding transaction:", error);

@@ -72,6 +72,12 @@ interface Transaction {
   category: string;
   type: "income" | "expense";
   date: Timestamp;
+  goalId?: string;
+}
+
+interface Goal {
+  id: string;
+  goalName: string;
 }
 
 const formSchema = z.object({
@@ -80,6 +86,7 @@ const formSchema = z.object({
   type: z.enum(["income", "expense"]),
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
+  goalId: z.string().optional(),
 });
 
 type TransactionFormValues = z.infer<typeof formSchema>;
@@ -87,8 +94,10 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 export default function TransactionList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const { toast } = useToast();
 
   const form = useForm<TransactionFormValues>({
@@ -101,6 +110,7 @@ export default function TransactionList() {
         ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
+        goalId: editingTransaction.goalId || "",
       });
     }
   }, [editingTransaction, form]);
@@ -125,13 +135,20 @@ export default function TransactionList() {
 
   async function onUpdate(values: TransactionFormValues) {
     if (!editingTransaction) return;
-    setLoading(true);
+    setIsUpdating(true);
     try {
       const transactionRef = doc(db, "transactions", editingTransaction.id);
-      await updateDoc(transactionRef, {
+      
+      const updatedData: any = {
         ...values,
         amount: values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount),
-      });
+      };
+
+      if (!values.goalId) {
+        delete updatedData.goalId;
+      }
+
+      await updateDoc(transactionRef, updatedData);
       toast({
         title: "Success!",
         description: "Transaction updated successfully.",
@@ -146,12 +163,12 @@ export default function TransactionList() {
         description: error.message || "An unexpected error occurred.",
       });
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   }
 
   useEffect(() => {
-    const fetchFamilyIdAndTransactions = async () => {
+    const fetchFamilyIdAndData = async () => {
       if (!auth.currentUser) {
         setLoading(false);
         return;
@@ -164,7 +181,7 @@ export default function TransactionList() {
         toast({
             variant: "destructive",
             title: "Family ID not found",
-            description: "Cannot fetch transactions without a family ID.",
+            description: "Cannot fetch data without a family ID.",
         });
         setLoading(false);
         return;
@@ -172,21 +189,17 @@ export default function TransactionList() {
       
       const familyId = userDoc.data().familyId;
 
-      const q = query(
+      // Fetch transactions
+      const transQuery = query(
         collection(db, "transactions"),
         where("familyId", "==", familyId)
       );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (querySnapshot) => {
+      const unsubscribeTransactions = onSnapshot(transQuery, (snapshot) => {
           const transactionsData: Transaction[] = [];
-          querySnapshot.forEach((doc) => {
+          snapshot.forEach((doc) => {
             transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
           });
-          
           transactionsData.sort((a, b) => b.date.toMillis() - a.date.toMillis());
-
           setTransactions(transactionsData);
           setLoading(false);
         },
@@ -196,14 +209,25 @@ export default function TransactionList() {
         }
       );
 
-      return () => unsubscribe();
+      // Fetch goals
+      const goalsQuery = query(collection(db, "goals"), where("familyId", "==", familyId));
+      const unsubscribeGoals = onSnapshot(goalsQuery, (snapshot) => {
+        const goalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+        setGoals(goalsData);
+      });
+
+      return () => {
+        unsubscribeTransactions();
+        unsubscribeGoals();
+      };
     };
     
     const unsubscribeAuth = auth.onAuthStateChanged(user => {
       if (user) {
-        fetchFamilyIdAndTransactions();
+        fetchFamilyIdAndData();
       } else {
         setTransactions([]);
+        setGoals([]);
         setLoading(false);
       }
     });
@@ -297,7 +321,7 @@ export default function TransactionList() {
                   <FormItem>
                     <FormLabel>Amount</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} disabled={loading} />
+                      <Input type="number" {...field} disabled={isUpdating} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -310,7 +334,7 @@ export default function TransactionList() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={loading} />
+                      <Input {...field} disabled={isUpdating} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -322,7 +346,7 @@ export default function TransactionList() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a type" />
@@ -344,12 +368,35 @@ export default function TransactionList() {
                   <FormItem>
                     <FormLabel>Category</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={loading} />
+                      <Input {...field} disabled={isUpdating} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              <FormField
+                  control={form.control}
+                  name="goalId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contribute to Goal (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isUpdating || goals.length === 0}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a goal" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {goals.map(goal => (
+                            <SelectItem key={goal.id} value={goal.id}>{goal.goalName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               <FormField
                 control={form.control}
                 name="date"
@@ -365,7 +412,7 @@ export default function TransactionList() {
                               "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
-                            disabled={loading}
+                            disabled={isUpdating}
                           >
                             {field.value ? (
                               format(field.value, "PPP")
@@ -393,8 +440,8 @@ export default function TransactionList() {
                 <DialogClose asChild>
                   <Button type="button" variant="outline">Cancel</Button>
                 </DialogClose>
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Changes
                 </Button>
               </DialogFooter>

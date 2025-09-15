@@ -66,6 +66,7 @@ interface Transaction {
     amount: number;
     category: string;
     type: "income" | "expense";
+    goalId?: string;
 }
 
 export default function GoalsTracker() {
@@ -91,7 +92,6 @@ export default function GoalsTracker() {
         }
       }
     };
-    fetchFamilyId();
     
     const unsubscribeAuth = auth.onAuthStateChanged(user => {
       if(user) {
@@ -117,21 +117,19 @@ export default function GoalsTracker() {
 
       const transactionsQuery = query(
         collection(db, "transactions"),
-        where("familyId", "==", familyId),
-        where("category", "==", "Savings")
+        where("familyId", "==", familyId)
       );
 
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (transactionSnapshot) => {
-        const savingsTransactions = transactionSnapshot.docs.map(doc => doc.data() as Transaction);
-        const totalSavings = savingsTransactions.reduce((sum, t) => sum + t.amount, 0);
-
+        const transactionsData = transactionSnapshot.docs.map(doc => doc.data() as Transaction);
+        
         const goalsWithProgress = goalsData.map(goal => {
-            // This is a simplified progress calculation.
-            // A more advanced version might link specific savings to goals.
-            // For now, we assume all savings contribute to all goals up to their target amount.
-            const currentAmount = Math.min(totalSavings, goal.targetAmount);
-            const progress = (currentAmount / goal.targetAmount) * 100;
-            return { ...goal, currentAmount, progress };
+            const contributions = transactionsData
+                .filter(t => t.goalId === goal.id)
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const progress = (contributions / goal.targetAmount) * 100;
+            return { ...goal, currentAmount: contributions, progress };
         });
 
         setGoals(goalsWithProgress);

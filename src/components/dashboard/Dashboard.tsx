@@ -16,6 +16,7 @@ import TransactionList from "../transactions/TransactionList";
 import BudgetForm from "../budgets/BudgetForm";
 import BudgetTracker from "../budgets/BudgetTracker";
 import DashboardSummary from "./DashboardSummary";
+import GoalsTracker from "../goals/GoalsTracker";
 
 interface DashboardProps {
   user: User;
@@ -55,6 +56,10 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       </Card>
 
       <DashboardSummary />
+      
+      <div className="space-y-6">
+        <GoalsTracker />
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

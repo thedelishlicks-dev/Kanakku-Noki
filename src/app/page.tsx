@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db, upsertUserDocument } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Login from "@/components/auth/Login";
@@ -11,6 +11,7 @@ import SignUp from "@/components/auth/SignUp";
 import Onboarding from "@/components/auth/Onboarding";
 import Dashboard from "@/components/dashboard/Dashboard";
 import { Loader2 } from "lucide-react";
+import { createFamily } from "@/lib/family";
 
 interface UserProfile {
   email: string | null;
@@ -58,6 +59,12 @@ export default function Home() {
               description: "The sign-in link is invalid or has expired.",
             });
           } finally {
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('familyId');
+            newUrl.searchParams.delete('apiKey');
+            newUrl.searchParams.delete('oobCode');
+            newUrl.searchParams.delete('mode');
+            window.history.replaceState({}, document.title, newUrl.pathname);
             setLoading(false);
           }
         }
@@ -82,14 +89,10 @@ export default function Home() {
       const unsubscribe = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
           const profileData = doc.data() as UserProfile;
-           if (!profileData.familyId) {
-             upsertUserDocument(user);
-             setUserProfile({ ...profileData, familyId: user.uid }); // Optimistically update
-           } else {
-             setUserProfile(profileData);
-           }
+          setUserProfile(profileData);
         } else {
            // This handles the case for users created before the onboarding flow was implemented.
+           // It ensures their document is created. They will then see the onboarding screen.
            upsertUserDocument(user);
         }
         setLoading(false);

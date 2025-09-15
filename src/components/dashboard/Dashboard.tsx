@@ -59,7 +59,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
 
       <DashboardSummary />
       
-      <Tabs defaultValue="dashboard">
+      <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>

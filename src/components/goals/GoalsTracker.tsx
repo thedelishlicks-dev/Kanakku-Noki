@@ -102,7 +102,7 @@ export default function GoalsTracker() {
     });
 
     return () => unsubscribeAuth();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (!familyId) {
@@ -118,8 +118,7 @@ export default function GoalsTracker() {
 
       const transactionsQuery = query(
         collection(db, "transactions"),
-        where("familyId", "==", familyId),
-        where("goalId", "!=", null)
+        where("familyId", "==", familyId)
       );
 
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (transactionSnapshot) => {
@@ -146,7 +145,7 @@ export default function GoalsTracker() {
     });
 
     return () => unsubscribeGoals();
-  }, [familyId]);
+  }, [familyId, toast]);
 
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(formSchema),

@@ -111,13 +111,15 @@ export default function GoalsTracker() {
       return;
     };
 
+    setGoalsLoading(true);
     const goalsQuery = query(collection(db, "goals"), where("familyId", "==", familyId));
     const unsubscribeGoals = onSnapshot(goalsQuery, (goalSnapshot) => {
       const goalsData = goalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
 
       const transactionsQuery = query(
         collection(db, "transactions"),
-        where("familyId", "==", familyId)
+        where("familyId", "==", familyId),
+        where("goalId", "!=", null)
       );
 
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (transactionSnapshot) => {

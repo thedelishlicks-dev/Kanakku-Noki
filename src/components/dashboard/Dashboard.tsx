@@ -20,13 +20,36 @@ import GoalsTracker from "../goals/GoalsTracker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FinancialReports from "../reports/FinancialReports";
 import InviteMembers from "../family/InviteMembers";
+import { doc, getDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { useEffect, useState } from "react";
 
 interface DashboardProps {
   user: User;
   onSignOut: () => void;
 }
 
+interface UserProfile {
+    role?: 'owner' | 'member';
+}
+
+
 export default function Dashboard({ user, onSignOut }: DashboardProps) {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                setUserProfile(userDoc.data() as UserProfile);
+            }
+        }
+    }
+    fetchUserProfile();
+  }, [user])
+
   const getInitials = (email: string | null) => {
     if (!email) return "U";
     const name = email.split('@')[0];
@@ -82,15 +105,17 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                 <BudgetTracker />
               </div>
               <div className="space-y-6">
-                 <Card className="w-full animate-fade-in shadow-xl">
-                  <CardHeader>
-                    <CardTitle>Family Management</CardTitle>
-                    <CardDescription>Invite new members to your family.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <InviteMembers />
-                  </CardContent>
-                </Card>
+                 {userProfile?.role === 'owner' && (
+                    <Card className="w-full animate-fade-in shadow-xl">
+                        <CardHeader>
+                        <CardTitle>Family Management</CardTitle>
+                        <CardDescription>Invite new members to your family.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                        <InviteMembers />
+                        </CardContent>
+                    </Card>
+                 )}
                 <Card className="w-full animate-fade-in shadow-xl">
                   <CardHeader>
                     <CardTitle>Add New Transaction</CardTitle>

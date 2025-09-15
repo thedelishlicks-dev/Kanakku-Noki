@@ -3,15 +3,24 @@
 import { useState, useEffect } from "react";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, signOut, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
-import { auth, upsertUserDocument } from "@/lib/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { auth, db, upsertUserDocument } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import Login from "@/components/auth/Login";
 import SignUp from "@/components/auth/SignUp";
+import Onboarding from "@/components/auth/Onboarding";
 import Dashboard from "@/components/dashboard/Dashboard";
 import { Loader2 } from "lucide-react";
 
+interface UserProfile {
+  email: string | null;
+  familyId?: string | null;
+  role?: 'owner' | 'member';
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"login" | "signup">("login");
   const { toast } = useToast();
@@ -32,14 +41,15 @@ export default function Home() {
             const url = new URL(window.location.href);
             const familyId = url.searchParams.get('familyId');
 
-            if (result.user && familyId) {
+            if (result.user) {
               await upsertUserDocument(result.user, familyId);
-              toast({
-                title: "Welcome to the family!",
-                description: "You've been successfully added to the family group.",
-              });
+               if (familyId) {
+                 toast({
+                   title: "Welcome to the family!",
+                   description: "You've been successfully added to the family group.",
+                 });
+               }
             }
-             // The onAuthStateChanged listener below will handle setting the user and loading state.
           } catch (error: any) {
             console.error("Error signing in with email link:", error);
             toast({
@@ -50,8 +60,6 @@ export default function Home() {
             setLoading(false);
           }
         }
-      } else {
-        setLoading(false);
       }
     };
     
@@ -59,13 +67,27 @@ export default function Home() {
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (loading && !isSignInWithEmailLink(auth, window.location.href)) {
-         setLoading(false);
+      if (!currentUser) {
+        setUserProfile(null);
+        setLoading(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          setUserProfile(doc.data() as UserProfile);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -92,9 +114,13 @@ export default function Home() {
     <main className="flex min-h-screen items-center justify-center bg-background p-4 md:p-8">
       <div className="w-full">
         {user ? (
-          <div className="flex justify-center">
-            <Dashboard user={user} onSignOut={handleSignOut} />
-          </div>
+          userProfile?.familyId ? (
+            <div className="flex justify-center">
+              <Dashboard user={user} onSignOut={handleSignOut} />
+            </div>
+          ) : (
+            <Onboarding user={user} />
+          )
         ) : (
           <div className="mx-auto w-full max-w-md">
             {view === "login" ? (

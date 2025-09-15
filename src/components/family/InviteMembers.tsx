@@ -19,10 +19,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Copy } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Skeleton } from "../ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -140,6 +141,16 @@ export default function InviteMembers() {
     }
   }
 
+  const copyInviteCode = () => {
+    if (familyId) {
+      navigator.clipboard.writeText(familyId);
+      toast({
+        title: "Copied!",
+        description: "Invite code copied to clipboard.",
+      });
+    }
+  }
+
   const getInitials = (email: string | null) => {
     if (!email) return "?";
     const name = email.split('@')[0];
@@ -174,6 +185,16 @@ export default function InviteMembers() {
             </Button>
           </form>
         </Form>
+      </div>
+
+       <div className="space-y-2">
+            <Label>Or Share Invite Code</Label>
+            <div className="flex items-center space-x-2">
+                <Input value={familyId || "..."} readOnly disabled={!familyId} />
+                <Button variant="outline" size="icon" onClick={copyInviteCode} disabled={!familyId}>
+                    <Copy className="h-4 w-4" />
+                </Button>
+            </div>
       </div>
 
       <Separator />

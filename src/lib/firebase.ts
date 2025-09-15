@@ -22,10 +22,9 @@ const auth = getAuth(app);
 
 /**
  * Creates or updates a user document in Firestore.
- * This function is designed to be idempotent and ensures every user has a familyId.
- * - If the user is new, it creates a document with a new familyId (or the one from an invite).
- * - If the user exists but lacks a familyId, it adds one.
- * - If the user exists and has a familyId, it does nothing unless a new familyId is provided via invite.
+ * This function is designed to be idempotent.
+ * - If the user is new, it creates a document.
+ * - If a familyId is provided (from an invitation), it adds the user to that family.
  * @param user The Firebase user object.
  * @param familyId Optional familyId to associate with the user (typically from an invitation link).
  */
@@ -35,25 +34,21 @@ export const upsertUserDocument = async (user: User, familyId: string | null = n
 
   if (!userDoc.exists()) {
     // Case 1: New user.
-    // Create a new family for them, using their own UID as the familyId, unless one is provided.
-    const newFamilyId = familyId || user.uid;
-    const userData = {
+    const userData: {email: string | null; uid: string; createdAt: Date; familyId?: string, role?: string} = {
       email: user.email,
       uid: user.uid,
       createdAt: new Date(),
-      familyId: newFamilyId,
     };
+    if (familyId) {
+      userData.familyId = familyId;
+      userData.role = 'member';
+    }
     await setDoc(userRef, userData);
   } else {
+    // Case 2: Existing user joins a new family via an invite link.
     const userData = userDoc.data();
      if (familyId && userData.familyId !== familyId) {
-      // Case 2: Existing user joins a new family via an invite link.
-      // This might happen if they were already in a different family.
-      await setDoc(userRef, { familyId: familyId }, { merge: true });
-    } else if (!userData.familyId) {
-        // Case 3: Existing user without a family signs in normally.
-        // Create a new family for them, making them the "owner".
-        await setDoc(userRef, { familyId: user.uid }, { merge: true });
+      await setDoc(userRef, { familyId: familyId, role: 'member' }, { merge: true });
     }
   }
 };

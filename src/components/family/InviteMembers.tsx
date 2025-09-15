@@ -23,7 +23,7 @@ import { Loader2, Users, Copy } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Skeleton } from "../ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),

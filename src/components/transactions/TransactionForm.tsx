@@ -91,7 +91,7 @@ export default function TransactionForm() {
       }
     })
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
@@ -178,7 +178,7 @@ export default function TransactionForm() {
                   type="number"
                   placeholder="0.00"
                   {...field}
-                  disabled={loading || !familyId}
+                  disabled={!familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -195,7 +195,7 @@ export default function TransactionForm() {
                 <Input
                   placeholder="e.g., Groceries, Salary"
                   {...field}
-                  disabled={loading || !familyId}
+                  disabled={!familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -208,7 +208,7 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={loading || !familyId}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a type" />
@@ -233,7 +233,7 @@ export default function TransactionForm() {
                 <Input
                   placeholder="e.g., Food, Transport"
                   {...field}
-                  disabled={loading || !familyId}
+                  disabled={!familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -246,7 +246,7 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Contribute to Goal (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={loading || !familyId || goals.length === 0}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId || goals.length === 0}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a goal" />
@@ -278,7 +278,7 @@ export default function TransactionForm() {
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
-                      disabled={loading || !familyId}
+                      disabled={!familyId}
                     >
                       {field.value ? (
                         format(field.value, "PPP")

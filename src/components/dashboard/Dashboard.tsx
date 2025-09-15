@@ -17,6 +17,8 @@ import BudgetForm from "../budgets/BudgetForm";
 import BudgetTracker from "../budgets/BudgetTracker";
 import DashboardSummary from "./DashboardSummary";
 import GoalsTracker from "../goals/GoalsTracker";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import FinancialReports from "../reports/FinancialReports";
 
 interface DashboardProps {
   user: User;
@@ -57,44 +59,53 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
 
       <DashboardSummary />
       
-      <div className="space-y-6">
-        <GoalsTracker />
-      </div>
+      <Tabs defaultValue="dashboard">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+        </TabsList>
+        <TabsContent value="dashboard" className="space-y-6 mt-6">
+           <GoalsTracker />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="w-full animate-fade-in shadow-xl">
-            <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>A list of your most recent transactions.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TransactionList />
-            </CardContent>
-          </Card>
-          <BudgetTracker />
-        </div>
-        <div className="space-y-6">
-          <Card className="w-full animate-fade-in shadow-xl">
-            <CardHeader>
-              <CardTitle>Add New Transaction</CardTitle>
-              <CardDescription>Enter transaction details.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TransactionForm />
-            </CardContent>
-          </Card>
-          <Card className="w-full animate-fade-in shadow-xl">
-            <CardHeader>
-              <CardTitle>Set New Budget</CardTitle>
-              <CardDescription>Define a new budget for a category.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BudgetForm />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="w-full animate-fade-in shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Recent Transactions</CardTitle>
+                    <CardDescription>A list of your most recent transactions.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TransactionList />
+                  </CardContent>
+                </Card>
+                <BudgetTracker />
+              </div>
+              <div className="space-y-6">
+                <Card className="w-full animate-fade-in shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Add New Transaction</CardTitle>
+                    <CardDescription>Enter transaction details.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TransactionForm />
+                  </CardContent>
+                </Card>
+                <Card className="w-full animate-fade-in shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Set New Budget</CardTitle>
+                    <CardDescription>Define a new budget for a category.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <BudgetForm />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+        </TabsContent>
+        <TabsContent value="reports" className="mt-6">
+          <FinancialReports />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -11,11 +11,12 @@ import {
   deleteDoc,
   updateDoc,
   Timestamp,
+  getDoc,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -98,6 +99,7 @@ export default function TransactionList() {
     if (editingTransaction) {
       form.reset({
         ...editingTransaction,
+        amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
       });
     }
@@ -149,35 +151,65 @@ export default function TransactionList() {
   }
 
   useEffect(() => {
-    const familyId = "hardcoded-family-id"; // As requested
-
-    const q = query(
-      collection(db, "transactions"),
-      where("familyId", "==", familyId)
-      // orderBy("date", "desc") // Temporarily removed to prevent crash.
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        const transactionsData: Transaction[] = [];
-        querySnapshot.forEach((doc) => {
-          transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
-        });
-        
-        transactionsData.sort((a, b) => b.date.toMillis() - a.date.toMillis());
-
-        setTransactions(transactionsData);
+    const fetchFamilyIdAndTransactions = async () => {
+      if (!auth.currentUser) {
         setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching transactions:", error);
+        return;
+      }
+
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists() || !userDoc.data().familyId) {
+        toast({
+            variant: "destructive",
+            title: "Family ID not found",
+            description: "Cannot fetch transactions without a family ID.",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      const familyId = userDoc.data().familyId;
+
+      const q = query(
+        collection(db, "transactions"),
+        where("familyId", "==", familyId)
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (querySnapshot) => {
+          const transactionsData: Transaction[] = [];
+          querySnapshot.forEach((doc) => {
+            transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+          });
+          
+          transactionsData.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+
+          setTransactions(transactionsData);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching transactions:", error);
+          setLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
+    };
+    
+    const unsubscribeAuth = auth.onAuthStateChanged(user => {
+      if (user) {
+        fetchFamilyIdAndTransactions();
+      } else {
+        setTransactions([]);
         setLoading(false);
       }
-    );
+    });
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubscribeAuth();
+  }, [toast]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -290,7 +322,7 @@ export default function TransactionList() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a type" />

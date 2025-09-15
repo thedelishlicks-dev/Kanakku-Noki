@@ -7,8 +7,10 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  doc,
+  getDoc,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -18,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 interface Budget {
   id: string;
@@ -43,61 +46,93 @@ interface BudgetWithSpending extends Budget {
 export default function BudgetTracker() {
   const [budgetsWithSpending, setBudgetsWithSpending] = useState<BudgetWithSpending[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const familyId = "hardcoded-family-id";
+    const fetchFamilyIdAndBudgets = async () => {
+      if (!auth.currentUser) {
+        setLoading(false);
+        return;
+      }
 
-    const budgetQuery = query(
-      collection(db, "budgets"),
-      where("familyId", "==", familyId)
-    );
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
 
-    const unsubscribeBudgets = onSnapshot(budgetQuery, (budgetSnapshot) => {
-      const budgetsData: Budget[] = [];
-      budgetSnapshot.forEach((doc) => {
-        budgetsData.push({ id: doc.id, ...doc.data() } as Budget);
-      });
+      if (!userDoc.exists() || !userDoc.data().familyId) {
+        toast({
+          variant: "destructive",
+          title: "Family ID not found",
+          description: "Cannot fetch budgets without a family ID.",
+        });
+        setLoading(false);
+        return;
+      }
 
-      const transactionQuery = query(
-        collection(db, "transactions"),
-        where("familyId", "==", familyId),
-        where("type", "==", "expense")
+      const familyId = userDoc.data().familyId;
+
+      const budgetQuery = query(
+        collection(db, "budgets"),
+        where("familyId", "==", familyId)
       );
 
-      const unsubscribeTransactions = onSnapshot(transactionQuery, (transactionSnapshot) => {
-        const transactionsData: Transaction[] = [];
-        transactionSnapshot.forEach((doc) => {
-          transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+      const unsubscribeBudgets = onSnapshot(budgetQuery, (budgetSnapshot) => {
+        const budgetsData: Budget[] = [];
+        budgetSnapshot.forEach((doc) => {
+          budgetsData.push({ id: doc.id, ...doc.data() } as Budget);
         });
 
-        const updatedBudgets = budgetsData.map((budget) => {
-          const budgetMonth = budget.month.toLowerCase();
-          
-          const spent = transactionsData
-            .filter((t) => {
-              const transactionMonth = t.date.toDate().toLocaleString('default', { month: 'long', year: 'numeric' }).toLowerCase();
-              return t.category.toLowerCase() === budget.category.toLowerCase() && transactionMonth === budgetMonth;
-            })
-            .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        const transactionQuery = query(
+          collection(db, "transactions"),
+          where("familyId", "==", familyId),
+          where("type", "==", "expense")
+        );
 
-          const remaining = budget.amount - spent;
-          const progress = (spent / budget.amount) * 100;
+        const unsubscribeTransactions = onSnapshot(transactionQuery, (transactionSnapshot) => {
+          const transactionsData: Transaction[] = [];
+          transactionSnapshot.forEach((doc) => {
+            transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+          });
 
-          return { ...budget, spent, remaining, progress };
+          const updatedBudgets = budgetsData.map((budget) => {
+            const budgetMonth = budget.month.toLowerCase();
+            
+            const spent = transactionsData
+              .filter((t) => {
+                const transactionMonth = t.date.toDate().toLocaleString('default', { month: 'long', year: 'numeric' }).toLowerCase();
+                return t.category.toLowerCase() === budget.category.toLowerCase() && transactionMonth === budgetMonth;
+              })
+              .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+            const remaining = budget.amount - spent;
+            const progress = (spent / budget.amount) * 100;
+
+            return { ...budget, spent, remaining, progress };
+          });
+
+          setBudgetsWithSpending(updatedBudgets);
+          setLoading(false);
         });
 
-        setBudgetsWithSpending(updatedBudgets);
+        return () => unsubscribeTransactions();
+      }, (error) => {
+        console.error("Error fetching budgets:", error);
         setLoading(false);
       });
 
-      return () => unsubscribeTransactions();
-    }, (error) => {
-      console.error("Error fetching budgets:", error);
-      setLoading(false);
+      return () => unsubscribeBudgets();
+    };
+    
+    const unsubscribe = auth.onAuthStateChanged(user => {
+        if (user) {
+            fetchFamilyIdAndBudgets();
+        } else {
+            setBudgetsWithSpending([]);
+            setLoading(false);
+        }
     });
 
-    return () => unsubscribeBudgets();
-  }, []);
+    return () => unsubscribe();
+  }, [toast]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

@@ -7,8 +7,10 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  doc,
+  getDoc,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
   Card,
   CardContent,
@@ -17,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowDownCircle, ArrowUpCircle, MinusCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
@@ -30,63 +33,95 @@ export default function DashboardSummary() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [netBalance, setNetBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const familyId = "hardcoded-family-id";
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-    const q = query(
-      collection(db, "transactions"),
-      where("familyId", "==", familyId)
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      let income = 0;
-      let expenses = 0;
-
-      querySnapshot.forEach((doc) => {
-        const transaction = doc.data() as Omit<Transaction, 'id'>;
-        const transactionDate = transaction.date.toDate();
-
-        if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
-          if (transaction.type === "income") {
-            income += transaction.amount;
-          } else {
-            // Expenses are stored as negative numbers in the form, but let's be safe
-            expenses += Math.abs(transaction.amount);
-          }
-        }
-      });
+    const fetchFamilyIdAndData = async () => {
+      if (!auth.currentUser) {
+        setLoading(false);
+        return;
+      }
       
-      // In TransactionForm, expenses are already negative. Let's adjust here.
-      const adjustedExpenses = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
-        .filter(t => {
-            const transactionDate = t.date.toDate();
-            return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'expense';
-        })
-        .reduce((sum, t) => sum + t.amount, 0);
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
 
-      const adjustedIncome = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
-        .filter(t => {
-            const transactionDate = t.date.toDate();
-            return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'income';
-        })
-        .reduce((sum, t) => sum + t.amount, 0);
+      if (!userDoc.exists() || !userDoc.data().familyId) {
+        toast({
+            variant: "destructive",
+            title: "Family ID not found",
+            description: "Cannot fetch summary data without a family ID.",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      const familyId = userDoc.data().familyId;
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      const q = query(
+        collection(db, "transactions"),
+        where("familyId", "==", familyId)
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        let income = 0;
+        let expenses = 0;
+
+        querySnapshot.forEach((doc) => {
+          const transaction = doc.data() as Omit<Transaction, 'id'>;
+          const transactionDate = transaction.date.toDate();
+
+          if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
+            if (transaction.type === "income") {
+              income += transaction.amount;
+            } else {
+              expenses += Math.abs(transaction.amount);
+            }
+          }
+        });
+        
+        const adjustedExpenses = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
+          .filter(t => {
+              const transactionDate = t.date.toDate();
+              return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'expense';
+          })
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        const adjustedIncome = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
+          .filter(t => {
+              const transactionDate = t.date.toDate();
+              return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'income';
+          })
+          .reduce((sum, t) => sum + t.amount, 0);
 
 
-      setTotalIncome(adjustedIncome);
-      setTotalExpenses(Math.abs(adjustedExpenses));
-      setNetBalance(adjustedIncome + adjustedExpenses);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching summary data:", error);
-      setLoading(false);
+        setTotalIncome(adjustedIncome);
+        setTotalExpenses(Math.abs(adjustedExpenses));
+        setNetBalance(adjustedIncome + adjustedExpenses);
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching summary data:", error);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    };
+
+    const unsubscribeAuth = auth.onAuthStateChanged(user => {
+      if (user) {
+        fetchFamilyIdAndData();
+      } else {
+        setTotalIncome(0);
+        setTotalExpenses(0);
+        setNetBalance(0);
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubscribeAuth();
+  }, [toast]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

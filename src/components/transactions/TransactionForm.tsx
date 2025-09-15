@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,27 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 
 export default function TransactionForm() {
   const [loading, setLoading] = useState(false);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchFamilyId = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().familyId) {
+          setFamilyId(userDoc.data().familyId);
+        } else {
+           toast({
+            variant: "destructive",
+            title: "Family ID not found.",
+            description: "Please ensure you are part of a family.",
+          });
+        }
+      }
+    };
+    fetchFamilyId();
+  }, []);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
@@ -69,9 +89,17 @@ export default function TransactionForm() {
       return;
     }
 
+    if (!familyId) {
+      toast({
+        variant: "destructive",
+        title: "Family ID Error",
+        description: "Could not find a family ID for the current user.",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const familyId = "hardcoded-family-id"; // As requested
       await addDoc(collection(db, "transactions"), {
         ...values,
         amount: values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount),
@@ -117,7 +145,7 @@ export default function TransactionForm() {
                   type="number"
                   placeholder="0.00"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -134,7 +162,7 @@ export default function TransactionForm() {
                 <Input
                   placeholder="e.g., Groceries, Salary"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -147,7 +175,7 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={loading || !familyId}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a type" />
@@ -172,7 +200,7 @@ export default function TransactionForm() {
                 <Input
                   placeholder="e.g., Food, Transport"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -194,7 +222,7 @@ export default function TransactionForm() {
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
-                      disabled={loading}
+                      disabled={loading || !familyId}
                     >
                       {field.value ? (
                         format(field.value, "PPP")
@@ -221,7 +249,7 @@ export default function TransactionForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
+        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading || !familyId}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Add Transaction
         </Button>

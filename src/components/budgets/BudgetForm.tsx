@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,28 @@ type BudgetFormValues = z.infer<typeof formSchema>;
 
 export default function BudgetForm() {
   const [loading, setLoading] = useState(false);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchFamilyId = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().familyId) {
+          setFamilyId(userDoc.data().familyId);
+        } else {
+           toast({
+            variant: "destructive",
+            title: "Family ID not found.",
+            description: "Please ensure you are part of a family.",
+          });
+        }
+      }
+    };
+    fetchFamilyId();
+  }, []);
+
 
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(formSchema),
@@ -49,10 +70,18 @@ export default function BudgetForm() {
       });
       return;
     }
+    
+    if (!familyId) {
+      toast({
+        variant: "destructive",
+        title: "Family ID Error",
+        description: "Could not find a family ID for the current user.",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      const familyId = "hardcoded-family-id"; // As requested
       await addDoc(collection(db, "budgets"), {
         ...values,
         familyId: familyId,
@@ -90,7 +119,7 @@ export default function BudgetForm() {
                 <Input
                   placeholder="e.g., Groceries"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -108,7 +137,7 @@ export default function BudgetForm() {
                   type="number"
                   placeholder="500"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
@@ -125,14 +154,14 @@ export default function BudgetForm() {
                 <Input
                   placeholder="e.g., October 2025"
                   {...field}
-                  disabled={loading}
+                  disabled={loading || !familyId}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading}>
+        <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={loading || !familyId}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Set Budget
         </Button>

@@ -134,7 +134,7 @@ export default function TransactionForm() {
         createdAt: new Date(),
       };
 
-      if (!values.goalId) {
+      if (!values.goalId || values.goalId === "none") {
         delete transactionData.goalId;
       }
 

@@ -46,12 +46,13 @@ export const upsertUserDocument = async (user: User, familyId: string | null = n
     await setDoc(userRef, userData);
   } else {
     const userData = userDoc.data();
-    if (familyId && !userData.familyId) {
-      // Case 2: Existing user without a family joins one via an invite link.
+     if (familyId && userData.familyId !== familyId) {
+      // Case 2: Existing user joins a new family via an invite link.
+      // This might happen if they were already in a different family.
       await setDoc(userRef, { familyId: familyId }, { merge: true });
     } else if (!userData.familyId) {
         // Case 3: Existing user without a family signs in normally.
-        // Create a new family for them.
+        // Create a new family for them, making them the "owner".
         await setDoc(userRef, { familyId: user.uid }, { merge: true });
     }
   }

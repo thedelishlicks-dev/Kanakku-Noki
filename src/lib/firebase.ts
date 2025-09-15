@@ -22,7 +22,8 @@ const auth = getAuth(app);
 
 /**
  * Creates or updates a user document in Firestore.
- * If a familyId is provided, it will be added to the user's document.
+ * If a familyId is provided (e.g., from an invitation), it will be added to the user's document.
+ * If no familyId is provided and the user is new, a new familyId is created using the user's UID.
  * This function is designed to be idempotent.
  * @param user The Firebase user object.
  * @param familyId Optional familyId to associate with the user.
@@ -32,15 +33,19 @@ export const upsertUserDocument = async (user: User, familyId: string | null = n
   const userDoc = await getDoc(userRef);
 
   if (!userDoc.exists()) {
+    // For a new user, if no familyId is passed (i.e., not from an invite),
+    // create a new family for them using their own UID as the familyId.
+    const newFamilyId = familyId || user.uid;
     const userData = {
       email: user.email,
       uid: user.uid,
       createdAt: new Date(),
-      ...(familyId && { familyId }),
+      familyId: newFamilyId,
     };
     await setDoc(userRef, userData);
   } else if (familyId && !userDoc.data().familyId) {
-    // Only add familyId if user doesn't already have one
+    // If an existing user who doesn't have a familyId signs in via an invite link,
+    // add them to the family.
     await setDoc(userRef, { familyId }, { merge: true });
   }
 };

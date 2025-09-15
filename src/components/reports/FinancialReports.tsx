@@ -181,7 +181,7 @@ export default function FinancialReports() {
     });
 
     return () => unsubscribeAuth();
-  }, [toast]);
+  }, []);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

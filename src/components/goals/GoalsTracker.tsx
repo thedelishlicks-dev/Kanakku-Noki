@@ -102,7 +102,7 @@ export default function GoalsTracker() {
     });
 
     return () => unsubscribeAuth();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!familyId) {
@@ -146,7 +146,7 @@ export default function GoalsTracker() {
     });
 
     return () => unsubscribeGoals();
-  }, [familyId, toast]);
+  }, [familyId]);
 
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(formSchema),

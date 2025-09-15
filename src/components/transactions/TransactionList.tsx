@@ -284,7 +284,7 @@ export default function TransactionList() {
     });
 
     return () => unsubscribeAuth();
-  }, [toast]);
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

@@ -91,7 +91,7 @@ export default function TransactionForm() {
       }
     })
     return () => unsubscribe();
-  }, [toast]);
+  }, []);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),

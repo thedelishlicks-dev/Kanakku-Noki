@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FinancialReports from "../reports/FinancialReports";
 import InviteMembers from "../family/InviteMembers";
 import { doc, getDoc } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 interface DashboardProps {

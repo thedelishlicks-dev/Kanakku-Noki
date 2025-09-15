@@ -102,7 +102,7 @@ export default function GoalsTracker() {
     });
 
     return () => unsubscribeAuth();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (!familyId) {

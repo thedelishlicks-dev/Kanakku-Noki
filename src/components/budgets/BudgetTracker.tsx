@@ -132,7 +132,7 @@ export default function BudgetTracker() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

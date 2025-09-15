@@ -66,34 +66,18 @@ export default function DashboardSummary() {
       );
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        let income = 0;
-        let expenses = 0;
-
-        querySnapshot.forEach((doc) => {
-          const transaction = doc.data() as Omit<Transaction, 'id'>;
-          const transactionDate = transaction.date.toDate();
-
-          if (transactionDate >= startOfMonth && transactionDate <= endOfMonth) {
-            if (transaction.type === "income") {
-              income += transaction.amount;
-            } else {
-              expenses += Math.abs(transaction.amount);
-            }
-          }
-        });
-        
-        const adjustedExpenses = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
+        const transactionsThisMonth = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
           .filter(t => {
               const transactionDate = t.date.toDate();
-              return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'expense';
-          })
+              return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
+          });
+
+        const adjustedIncome = transactionsThisMonth
+          .filter(t => t.type === 'income')
           .reduce((sum, t) => sum + t.amount, 0);
-
-        const adjustedIncome = querySnapshot.docs.map(d => d.data() as Omit<Transaction, 'id'>)
-          .filter(t => {
-              const transactionDate = t.date.toDate();
-              return transactionDate >= startOfMonth && transactionDate <= endOfMonth && t.type === 'income';
-          })
+          
+        const adjustedExpenses = transactionsThisMonth
+          .filter(t => t.type === 'expense')
           .reduce((sum, t) => sum + t.amount, 0);
 
 
@@ -121,7 +105,7 @@ export default function DashboardSummary() {
     });
 
     return () => unsubscribeAuth();
-  }, []);
+  }, [toast]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

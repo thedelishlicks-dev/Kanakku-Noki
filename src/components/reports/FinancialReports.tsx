@@ -181,9 +181,16 @@ export default function FinancialReports() {
     });
 
     return () => unsubscribeAuth();
-  }, []);
+  }, [toast]);
   
   const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+    }).format(amount);
+  };
+  
+  const formatCurrencyTooltip = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
@@ -222,7 +229,7 @@ export default function FinancialReports() {
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
-                  label={(props) => formatCurrency(props.value)}
+                  label={(props) => formatCurrencyTooltip(props.value)}
                 >
                   {expenseData.map((entry, index) => (
                     <Cell

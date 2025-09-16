@@ -57,6 +57,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -96,13 +98,14 @@ interface Category {
   id: string;
   name: string;
   type: 'income' | 'expense';
+  subcategories?: string[];
 }
 
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  categoryId: z.string().min(1, { message: "Category is required." }),
+  category: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
@@ -139,12 +142,11 @@ export default function TransactionList() {
 
   useEffect(() => {
     if (editingTransaction) {
-      const category = categories.find(c => c.name === editingTransaction.category && c.type === editingTransaction.type);
       form.reset({
         ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
-        categoryId: category ? category.id : "",
+        category: editingTransaction.category,
         goalId: editingTransaction.goalId || "none",
       });
     }
@@ -216,7 +218,6 @@ export default function TransactionList() {
     if (!editingTransaction) return;
     setIsUpdating(true);
     try {
-       const category = categories.find(c => c.id === values.categoryId);
        await runTransaction(db, async (t) => {
         const transactionRef = doc(db, "transactions", editingTransaction.id);
 
@@ -226,7 +227,6 @@ export default function TransactionList() {
 
         const updatedData: any = {
           ...values,
-          category: category?.name,
           amount: newAmount,
         };
         if (!values.goalId || values.goalId === "none") {
@@ -486,7 +486,7 @@ export default function TransactionList() {
                     <FormLabel>Type</FormLabel>
                     <Select onValueChange={(value) => {
                       field.onChange(value);
-                      form.setValue('categoryId', ''); // Reset category on type change
+                      form.setValue('category', ''); // Reset category on type change
                     }} value={field.value} disabled={isUpdating}>
                       <FormControl>
                         <SelectTrigger>
@@ -504,7 +504,7 @@ export default function TransactionList() {
               />
               <FormField
                 control={form.control}
-                name="categoryId"
+                name="category"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
@@ -516,7 +516,15 @@ export default function TransactionList() {
                       </FormControl>
                       <SelectContent>
                         {categories.filter(c => c.type === transactionType).map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                           <SelectGroup key={cat.id}>
+                            <SelectLabel>{cat.name}</SelectLabel>
+                            <SelectItem value={cat.name}>{cat.name} (General)</SelectItem>
+                            {cat.subcategories?.map(sub => (
+                                <SelectItem key={`${cat.id}-${sub}`} value={`${cat.name}: ${sub}`}>
+                                    {sub}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
                         ))}
                       </SelectContent>
                     </Select>

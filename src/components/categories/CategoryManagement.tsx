@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { addDoc, collection, doc, getDoc, query, where, onSnapshot, deleteDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, query, where, onSnapshot, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -31,28 +31,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Loader2, Trash2, Tag } from "lucide-react";
+import { Loader2, Trash2, Tag, PlusCircle } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { ScrollArea } from "../ui/scroll-area";
 import { Badge } from "../ui/badge";
 import { Skeleton } from "../ui/skeleton";
 
-const formSchema = z.object({
+const categoryFormSchema = z.object({
   name: z.string().min(1, { message: "Category name is required." }),
   type: z.enum(["income", "expense"]),
 });
 
-type CategoryFormValues = z.infer<typeof formSchema>;
+const subcategoryFormSchema = z.object({
+  name: z.string().min(1, { message: "Subcategory name is required." }),
+  parentCategoryId: z.string().min(1, { message: "Parent category is required." }),
+});
+
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
+type SubcategoryFormValues = z.infer<typeof subcategoryFormSchema>;
 
 interface Category {
   id: string;
   name: string;
   type: "income" | "expense";
   isDefault: boolean;
+  subcategories?: string[];
 }
 
 export default function CategoryManagement() {
   const [loading, setLoading] = useState(false);
+  const [submittingSubcategory, setSubmittingSubcategory] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -107,15 +115,23 @@ export default function CategoryManagement() {
     return () => unsubscribeAuth();
   }, [toast]);
 
-  const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(formSchema),
+  const categoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       name: "",
       type: "expense",
     },
   });
+  
+  const subcategoryForm = useForm<SubcategoryFormValues>({
+    resolver: zodResolver(subcategoryFormSchema),
+    defaultValues: {
+      name: "",
+      parentCategoryId: "",
+    },
+  });
 
-  async function onSubmit(values: CategoryFormValues) {
+  async function onCategorySubmit(values: CategoryFormValues) {
     if (!auth.currentUser || !familyId) {
       toast({
         variant: "destructive",
@@ -132,13 +148,14 @@ export default function CategoryManagement() {
         familyId: familyId,
         isDefault: false,
         createdAt: new Date(),
+        subcategories: [],
       });
 
       toast({
         title: "Success!",
         description: "New category created successfully.",
       });
-      form.reset();
+      categoryForm.reset();
     } catch (error: any) {
       console.error("Error adding category:", error);
       toast({
@@ -151,7 +168,41 @@ export default function CategoryManagement() {
     }
   }
 
-  const handleDelete = async (categoryId: string) => {
+  async function onSubcategorySubmit(values: SubcategoryFormValues) {
+    if (!auth.currentUser || !familyId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in and part of a family to add a subcategory.",
+      });
+      return;
+    }
+
+    setSubmittingSubcategory(true);
+    try {
+      const categoryRef = doc(db, "categories", values.parentCategoryId);
+      await updateDoc(categoryRef, {
+        subcategories: arrayUnion(values.name)
+      });
+      
+      toast({
+        title: "Success!",
+        description: "Subcategory added successfully.",
+      });
+      subcategoryForm.reset();
+    } catch (error: any) {
+      console.error("Error adding subcategory:", error);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: error.message || "An unexpected error occurred.",
+      });
+    } finally {
+      setSubmittingSubcategory(false);
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
     try {
       await deleteDoc(doc(db, "categories", categoryId));
       toast({
@@ -168,22 +219,42 @@ export default function CategoryManagement() {
     }
   }
 
+  const handleDeleteSubcategory = async (categoryId: string, subcategoryName: string) => {
+    try {
+      const categoryRef = doc(db, "categories", categoryId);
+      await updateDoc(categoryRef, {
+        subcategories: arrayRemove(subcategoryName)
+      });
+      toast({
+        title: "Deleted",
+        description: "Subcategory removed successfully."
+      });
+    } catch (error: any) {
+      console.error("Error deleting subcategory:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete subcategory."
+      });
+    }
+  }
+
   const incomeCategories = categories.filter(c => c.type === 'income');
   const expenseCategories = categories.filter(c => c.type === 'expense');
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-1">
+      <div className="md:col-span-1 space-y-6">
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Create New Category</CardTitle>
             <CardDescription>Add a custom category for transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Form {...categoryForm}>
+              <form onSubmit={categoryForm.handleSubmit(onCategorySubmit)} className="space-y-4">
                 <FormField
-                  control={form.control}
+                  control={categoryForm.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -200,7 +271,7 @@ export default function CategoryManagement() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={categoryForm.control}
                   name="type"
                   render={({ field }) => (
                     <FormItem>
@@ -230,7 +301,72 @@ export default function CategoryManagement() {
                   disabled={loading || !familyId}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Category
+                  <PlusCircle className="mr-2 h-4 w-4" /> Create Category
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle>Add Subcategory</CardTitle>
+            <CardDescription>Organize your main categories further.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...subcategoryForm}>
+              <form onSubmit={subcategoryForm.handleSubmit(onSubcategorySubmit)} className="space-y-4">
+                <FormField
+                  control={subcategoryForm.control}
+                  name="parentCategoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Parent Category</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={submittingSubcategory || !familyId || categories.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a parent category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={subcategoryForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subcategory Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Groceries"
+                          {...field}
+                          disabled={submittingSubcategory || !familyId}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  variant="secondary"
+                  disabled={submittingSubcategory || !familyId}
+                >
+                  {submittingSubcategory && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Subcategory
                 </Button>
               </form>
             </Form>
@@ -259,20 +395,34 @@ export default function CategoryManagement() {
                     <div className="space-y-3">
                         <h3 className="font-semibold text-lg text-green-600">Income</h3>
                         <Separator />
-                        <ScrollArea className="h-64">
+                        <ScrollArea className="h-[calc(100vh-25rem)]">
                             <div className="space-y-2 pr-4">
                                 {incomeCategories.map(cat => (
-                                    <div key={cat.id} className="flex justify-between items-center bg-secondary/50 p-2 rounded-md">
-                                        <div className="flex items-center gap-2">
-                                            <Tag className="h-4 w-4 text-muted-foreground" />
-                                            <span className="font-medium text-sm">{cat.name}</span>
-                                            {cat.isDefault && <Badge variant="outline" className="text-xs">Default</Badge>}
+                                    <div key={cat.id}>
+                                      <div className="flex justify-between items-center bg-secondary/50 p-2 rounded-md">
+                                          <div className="flex items-center gap-2">
+                                              <Tag className="h-4 w-4 text-muted-foreground" />
+                                              <span className="font-medium text-sm">{cat.name}</span>
+                                              {cat.isDefault && <Badge variant="outline" className="text-xs">Default</Badge>}
+                                          </div>
+                                          {!cat.isDefault && (
+                                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCategory(cat.id)}>
+                                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                              </Button>
+                                          )}
+                                      </div>
+                                      {cat.subcategories && cat.subcategories.length > 0 && (
+                                        <div className="pl-6 mt-1 space-y-1">
+                                          {cat.subcategories.map(sub => (
+                                            <div key={sub} className="flex justify-between items-center bg-secondary/20 p-1.5 rounded-md">
+                                              <span className="text-xs text-muted-foreground ml-2">{sub}</span>
+                                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteSubcategory(cat.id, sub)}>
+                                                  <Trash2 className="h-3 w-3 text-red-400" />
+                                              </Button>
+                                            </div>
+                                          ))}
                                         </div>
-                                        {!cat.isDefault && (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(cat.id)}>
-                                                <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                        )}
+                                      )}
                                     </div>
                                 ))}
                             </div>
@@ -281,20 +431,34 @@ export default function CategoryManagement() {
                      <div className="space-y-3">
                         <h3 className="font-semibold text-lg text-red-600">Expenses</h3>
                         <Separator />
-                        <ScrollArea className="h-64">
+                        <ScrollArea className="h-[calc(100vh-25rem)]">
                             <div className="space-y-2 pr-4">
                                 {expenseCategories.map(cat => (
-                                    <div key={cat.id} className="flex justify-between items-center bg-secondary/50 p-2 rounded-md">
-                                        <div className="flex items-center gap-2">
-                                            <Tag className="h-4 w-4 text-muted-foreground" />
-                                            <span className="font-medium text-sm">{cat.name}</span>
-                                            {cat.isDefault && <Badge variant="outline" className="text-xs">Default</Badge>}
+                                     <div key={cat.id}>
+                                      <div className="flex justify-between items-center bg-secondary/50 p-2 rounded-md">
+                                          <div className="flex items-center gap-2">
+                                              <Tag className="h-4 w-4 text-muted-foreground" />
+                                              <span className="font-medium text-sm">{cat.name}</span>
+                                              {cat.isDefault && <Badge variant="outline" className="text-xs">Default</Badge>}
+                                          </div>
+                                          {!cat.isDefault && (
+                                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteCategory(cat.id)}>
+                                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                              </Button>
+                                          )}
+                                      </div>
+                                       {cat.subcategories && cat.subcategories.length > 0 && (
+                                        <div className="pl-6 mt-1 space-y-1">
+                                          {cat.subcategories.map(sub => (
+                                            <div key={sub} className="flex justify-between items-center bg-secondary/20 p-1.5 rounded-md">
+                                              <span className="text-xs text-muted-foreground ml-2">{sub}</span>
+                                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteSubcategory(cat.id, sub)}>
+                                                  <Trash2 className="h-3 w-3 text-red-400" />
+                                              </Button>
+                                            </div>
+                                          ))}
                                         </div>
-                                        {!cat.isDefault && (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(cat.id)}>
-                                                <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                        )}
+                                      )}
                                     </div>
                                 ))}
                             </div>

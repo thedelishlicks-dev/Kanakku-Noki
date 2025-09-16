@@ -23,6 +23,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -38,7 +40,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  categoryId: z.string().min(1, { message: "Category is required." }),
+  category: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
@@ -60,6 +62,7 @@ interface Category {
   id: string;
   name: string;
   type: 'income' | 'expense';
+  subcategories?: string[];
 }
 
 export default function TransactionForm() {
@@ -76,7 +79,7 @@ export default function TransactionForm() {
       amount: 0,
       description: "",
       type: "expense",
-      categoryId: "",
+      category: "",
       date: new Date(),
       accountId: "",
       goalId: undefined,
@@ -153,7 +156,6 @@ export default function TransactionForm() {
     setLoading(true);
     try {
       const transactionAmount = values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount);
-      const category = categories.find(c => c.id === values.categoryId);
 
       await runTransaction(db, async (transaction) => {
           const transactionRef = doc(collection(db, "transactions"));
@@ -161,7 +163,6 @@ export default function TransactionForm() {
 
           const transactionData: any = {
             ...values,
-            category: category?.name, // Store category name for display
             amount: transactionAmount,
             uid: auth.currentUser.uid,
             familyId: familyId,
@@ -184,7 +185,7 @@ export default function TransactionForm() {
         amount: 0,
         description: "",
         type: "expense",
-        categoryId: "",
+        category: "",
         date: new Date(),
         accountId: "",
         goalId: undefined,
@@ -247,7 +248,7 @@ export default function TransactionForm() {
               <FormLabel>Type</FormLabel>
               <Select onValueChange={(value) => {
                 field.onChange(value);
-                form.setValue('categoryId', ''); // Reset category on type change
+                form.setValue('category', ''); // Reset category on type change
               }} value={field.value} disabled={!familyId}>
                 <FormControl>
                   <SelectTrigger>
@@ -265,7 +266,7 @@ export default function TransactionForm() {
         />
         <FormField
           control={form.control}
-          name="categoryId"
+          name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
@@ -277,7 +278,15 @@ export default function TransactionForm() {
                     </FormControl>
                     <SelectContent>
                       {categories.filter(c => c.type === transactionType).map(cat => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        <SelectGroup key={cat.id}>
+                            <SelectLabel>{cat.name}</SelectLabel>
+                            <SelectItem value={cat.name}>{cat.name} (General)</SelectItem>
+                            {cat.subcategories?.map(sub => (
+                                <SelectItem key={`${cat.id}-${sub}`} value={`${cat.name}: ${sub}`}>
+                                    {sub}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                 </Select>

@@ -245,7 +245,10 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId}>
+              <Select onValueChange={(value) => {
+                field.onChange(value);
+                form.setValue('categoryId', ''); // Reset category on type change
+              }} value={field.value} disabled={!familyId}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a type" />

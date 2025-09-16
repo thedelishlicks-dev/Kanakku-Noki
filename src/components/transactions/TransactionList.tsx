@@ -92,11 +92,17 @@ interface Account {
   name: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+}
+
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  category: z.string().min(1, { message: "Category is required." }),
+  categoryId: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
@@ -113,12 +119,15 @@ export default function TransactionList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showNeedsReviewOnly, setShowNeedsReviewOnly] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
   });
+
+  const transactionType = form.watch("type");
 
    useEffect(() => {
     if (showNeedsReviewOnly) {
@@ -130,14 +139,16 @@ export default function TransactionList() {
 
   useEffect(() => {
     if (editingTransaction) {
+      const category = categories.find(c => c.name === editingTransaction.category && c.type === editingTransaction.type);
       form.reset({
         ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
+        categoryId: category ? category.id : "",
         goalId: editingTransaction.goalId || "none",
       });
     }
-  }, [editingTransaction, form]);
+  }, [editingTransaction, form, categories]);
 
   const handleDelete = async (transaction: Transaction) => {
     try {
@@ -205,6 +216,7 @@ export default function TransactionList() {
     if (!editingTransaction) return;
     setIsUpdating(true);
     try {
+       const category = categories.find(c => c.id === values.categoryId);
        await runTransaction(db, async (t) => {
         const transactionRef = doc(db, "transactions", editingTransaction.id);
 
@@ -214,6 +226,7 @@ export default function TransactionList() {
 
         const updatedData: any = {
           ...values,
+          category: category?.name,
           amount: newAmount,
         };
         if (!values.goalId || values.goalId === "none") {
@@ -300,12 +313,19 @@ export default function TransactionList() {
           const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
           setAccounts(accountsData);
       });
+      
+      const categoriesQuery = query(collection(db, "categories"), where("familyId", "==", familyId));
+      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        const categoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        setCategories(categoriesData);
+      });
 
 
       return () => {
         unsubscribeTransactions();
         unsubscribeGoals();
         unsubscribeAccounts();
+        unsubscribeCategories();
       };
     };
     
@@ -316,6 +336,7 @@ export default function TransactionList() {
         setTransactions([]);
         setGoals([]);
         setAccounts([]);
+        setCategories([]);
         setLoading(false);
       }
     });
@@ -463,7 +484,10 @@ export default function TransactionList() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating}>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue('categoryId', ''); // Reset category on type change
+                    }} value={field.value} disabled={isUpdating}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a type" />
@@ -480,13 +504,22 @@ export default function TransactionList() {
               />
               <FormField
                 control={form.control}
-                name="category"
+                name="categoryId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={isUpdating} />
-                    </FormControl>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating || categories.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.filter(c => c.type === transactionType).map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

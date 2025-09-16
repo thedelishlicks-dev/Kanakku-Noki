@@ -96,8 +96,10 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="space-y-6 mt-6">
-           <GoalsTracker />
-           <EventsDashboard />
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <GoalsTracker />
+             <EventsDashboard />
+           </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2 space-y-6">

@@ -222,7 +222,6 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
 
           const transactionData: any = {
             ...values,
-            description: `${categoryName}${values.subcategory ? ' - ' + values.subcategory : ''}`,
             category: fullCategory,
             amount: transactionAmount,
             uid: auth.currentUser.uid,

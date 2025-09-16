@@ -72,7 +72,6 @@ import { Label } from "../ui/label";
 interface Transaction {
   id: string;
   amount: number;
-  description: string;
   category: string;
   categoryId: string;
   subcategory?: string;
@@ -281,7 +280,6 @@ export default function TransactionList() {
 
         const updatedData: any = {
           ...values,
-          description: `${categoryName}${values.subcategory ? ' - ' + values.subcategory : ''}`,
           amount: newAmount,
           category: fullCategory,
         };
@@ -455,7 +453,6 @@ export default function TransactionList() {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead className="text-center">Status</TableHead>
@@ -466,7 +463,6 @@ export default function TransactionList() {
             {filteredTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell className="text-muted-foreground">{formatDate(transaction.date)}</TableCell>
-                <TableCell className="font-medium">{transaction.description}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{transaction.category}</Badge>
                 </TableCell>

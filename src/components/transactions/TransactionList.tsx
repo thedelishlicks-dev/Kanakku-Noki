@@ -12,6 +12,8 @@ import {
   updateDoc,
   Timestamp,
   getDoc,
+  runTransaction,
+  increment,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,6 +76,7 @@ interface Transaction {
   category: string;
   type: "income" | "expense";
   date: Timestamp;
+  accountId: string;
   goalId?: string;
   needsReview?: boolean;
   reviewedBy?: string;
@@ -84,12 +87,18 @@ interface Goal {
   goalName: string;
 }
 
+interface Account {
+  id: string;
+  name: string;
+}
+
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
+  accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
 });
 
@@ -103,6 +112,7 @@ export default function TransactionList() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showNeedsReviewOnly, setShowNeedsReviewOnly] = useState(false);
   const { toast } = useToast();
 
@@ -129,9 +139,16 @@ export default function TransactionList() {
     }
   }, [editingTransaction, form]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (transaction: Transaction) => {
     try {
-      await deleteDoc(doc(db, "transactions", id));
+       await runTransaction(db, async (t) => {
+        const transactionRef = doc(db, "transactions", transaction.id);
+        const accountRef = doc(db, "accounts", transaction.accountId);
+        
+        t.delete(transactionRef);
+        // Reverse the transaction amount to update the balance correctly
+        t.update(accountRef, { balance: increment(-transaction.amount) });
+      });
       toast({
         title: "Success",
         description: "Transaction deleted successfully.",
@@ -188,18 +205,36 @@ export default function TransactionList() {
     if (!editingTransaction) return;
     setIsUpdating(true);
     try {
-      const transactionRef = doc(db, "transactions", editingTransaction.id);
-      
-      const updatedData: any = {
-        ...values,
-        amount: values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount),
-      };
+       await runTransaction(db, async (t) => {
+        const transactionRef = doc(db, "transactions", editingTransaction.id);
 
-      if (!values.goalId || values.goalId === "none") {
-        delete updatedData.goalId;
-      }
+        const newAmount = values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount);
+        const oldAmount = editingTransaction.amount;
+        const amountDifference = newAmount - oldAmount;
 
-      await updateDoc(transactionRef, updatedData);
+        const updatedData: any = {
+          ...values,
+          amount: newAmount,
+        };
+        if (!values.goalId || values.goalId === "none") {
+          delete updatedData.goalId;
+        }
+
+        t.update(transactionRef, updatedData);
+
+        // If account is changed, revert old account balance and update new one
+        if (editingTransaction.accountId !== values.accountId) {
+          const oldAccountRef = doc(db, "accounts", editingTransaction.accountId);
+          t.update(oldAccountRef, { balance: increment(-oldAmount) });
+
+          const newAccountRef = doc(db, "accounts", values.accountId);
+          t.update(newAccountRef, { balance: increment(newAmount) });
+        } else {
+           // If account is not changed, just update with the difference
+          const accountRef = doc(db, "accounts", values.accountId);
+          t.update(accountRef, { balance: increment(amountDifference) });
+        }
+      });
       toast({
         title: "Success!",
         description: "Transaction updated successfully.",
@@ -229,18 +264,12 @@ export default function TransactionList() {
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists() || !userDoc.data().familyId) {
-        toast({
-            variant: "destructive",
-            title: "Family ID not found",
-            description: "Cannot fetch data without a family ID.",
-        });
         setLoading(false);
         return;
       }
       
       const familyId = userDoc.data().familyId;
 
-      // Fetch transactions
       const transQuery = query(
         collection(db, "transactions"),
         where("familyId", "==", familyId)
@@ -260,16 +289,23 @@ export default function TransactionList() {
         }
       );
 
-      // Fetch goals
       const goalsQuery = query(collection(db, "goals"), where("familyId", "==", familyId));
       const unsubscribeGoals = onSnapshot(goalsQuery, (snapshot) => {
         const goalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
         setGoals(goalsData);
       });
 
+      const accountsQuery = query(collection(db, "accounts"), where("familyId", "==", familyId));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+          const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+          setAccounts(accountsData);
+      });
+
+
       return () => {
         unsubscribeTransactions();
         unsubscribeGoals();
+        unsubscribeAccounts();
       };
     };
     
@@ -279,6 +315,7 @@ export default function TransactionList() {
       } else {
         setTransactions([]);
         setGoals([]);
+        setAccounts([]);
         setLoading(false);
       }
     });
@@ -377,7 +414,7 @@ export default function TransactionList() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTransaction(transaction); setIsDialogOpen(true); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(transaction.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(transaction)}>
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
                 </TableCell>
@@ -450,6 +487,28 @@ export default function TransactionList() {
                     <FormControl>
                       <Input {...field} disabled={isUpdating} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="accountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating || accounts.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an account" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {accounts.map(account => (
+                          <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

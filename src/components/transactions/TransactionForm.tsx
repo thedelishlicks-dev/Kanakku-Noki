@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { addDoc, collection, doc, getDoc, query, where, onSnapshot, Timestamp } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, query, where, onSnapshot, Timestamp, runTransaction, increment } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ const formSchema = z.object({
   type: z.enum(["income", "expense"]),
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
+  accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
 });
 
@@ -48,18 +49,22 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 interface Goal {
   id: string;
   goalName: string;
-  targetAmount: number;
-  targetDate: Timestamp;
+}
+
+interface Account {
+  id: string;
+  name: string;
 }
 
 export default function TransactionForm() {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchFamilyAndGoals = async () => {
+    const fetchFamilyAndData = async () => {
       if (auth.currentUser) {
         const userDocRef = doc(db, "users", auth.currentUser.uid);
         const userDoc = await getDoc(userDocRef);
@@ -68,11 +73,21 @@ export default function TransactionForm() {
           setFamilyId(fetchedFamilyId);
 
           const goalsQuery = query(collection(db, "goals"), where("familyId", "==", fetchedFamilyId));
-          const unsubscribe = onSnapshot(goalsQuery, (snapshot) => {
+          const unsubscribeGoals = onSnapshot(goalsQuery, (snapshot) => {
             const goalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
             setGoals(goalsData);
           });
-          return () => unsubscribe();
+
+          const accountsQuery = query(collection(db, "accounts"), where("familyId", "==", fetchedFamilyId));
+          const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+            const accountsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+            setAccounts(accountsData);
+          });
+
+          return () => {
+            unsubscribeGoals();
+            unsubscribeAccounts();
+          };
         } else {
            toast({
             variant: "destructive",
@@ -84,14 +99,15 @@ export default function TransactionForm() {
     };
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
-        fetchFamilyAndGoals();
+        fetchFamilyAndData();
       } else {
         setFamilyId(null);
         setGoals([]);
+        setAccounts([]);
       }
     })
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
@@ -101,44 +117,44 @@ export default function TransactionForm() {
       type: "expense",
       category: "",
       date: new Date(),
+      accountId: "",
       goalId: undefined,
     },
   });
 
   async function onSubmit(values: TransactionFormValues) {
-    if (!auth.currentUser) {
+    if (!auth.currentUser || !familyId) {
       toast({
         variant: "destructive",
-        title: "Authentication Error",
-        description: "You must be logged in to add a transaction.",
-      });
-      return;
-    }
-
-    if (!familyId) {
-      toast({
-        variant: "destructive",
-        title: "Family ID Error",
-        description: "Could not find a family ID for the current user.",
+        title: "Error",
+        description: "You must be logged in and part of a family.",
       });
       return;
     }
 
     setLoading(true);
     try {
-      const transactionData: any = {
-        ...values,
-        amount: values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount),
-        uid: auth.currentUser.uid,
-        familyId: familyId,
-        createdAt: new Date(),
-      };
+      const transactionAmount = values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount);
 
-      if (!values.goalId || values.goalId === "none") {
-        delete transactionData.goalId;
-      }
+      await runTransaction(db, async (transaction) => {
+          const transactionRef = doc(collection(db, "transactions"));
+          const accountRef = doc(db, "accounts", values.accountId);
 
-      await addDoc(collection(db, "transactions"), transactionData);
+          const transactionData: any = {
+            ...values,
+            amount: transactionAmount,
+            uid: auth.currentUser.uid,
+            familyId: familyId,
+            createdAt: new Date(),
+          };
+
+          if (!values.goalId || values.goalId === "none") {
+            delete transactionData.goalId;
+          }
+          
+          transaction.set(transactionRef, transactionData);
+          transaction.update(accountRef, { balance: increment(transactionAmount) });
+      });
 
       toast({
         title: "Success!",
@@ -150,6 +166,7 @@ export default function TransactionForm() {
         type: "expense",
         category: "",
         date: new Date(),
+        accountId: "",
         goalId: undefined,
       });
     } catch (error: any) {
@@ -236,6 +253,28 @@ export default function TransactionForm() {
                   disabled={!familyId}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="accountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId || accounts.length === 0}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an account" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

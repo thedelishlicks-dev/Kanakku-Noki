@@ -20,6 +20,7 @@ import GoalsTracker from "../goals/GoalsTracker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FinancialReports from "../reports/FinancialReports";
 import InviteMembers from "../family/InviteMembers";
+import AccountManagement from "../accounts/AccountManagement";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -84,8 +85,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       <DashboardSummary />
       
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="space-y-6 mt-6">
@@ -136,6 +138,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                 </Card>
               </div>
             </div>
+        </TabsContent>
+        <TabsContent value="accounts" className="mt-6">
+            <AccountManagement />
         </TabsContent>
         <TabsContent value="reports" className="mt-6">
           <FinancialReports />

@@ -11,9 +11,7 @@ import {
 } from "@/components/ui/card";
 import { LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import TransactionForm from "../transactions/TransactionForm";
 import TransactionList from "../transactions/TransactionList";
-import BudgetForm from "../budgets/BudgetForm";
 import BudgetTracker from "../budgets/BudgetTracker";
 import DashboardSummary from "./DashboardSummary";
 import GoalsTracker from "../goals/GoalsTracker";
@@ -27,6 +25,7 @@ import { useEffect, useState } from "react";
 import CategoryManagement from "../categories/CategoryManagement";
 import EventPlanner from "../events/EventPlanner";
 import EventsDashboard from "../events/EventsDashboard";
+import NewItemModal from "./NewItemModal";
 
 interface DashboardProps {
   user: User;
@@ -77,10 +76,13 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                 <CardDescription className="truncate">{user.email}</CardDescription>
               </div>
             </div>
-            <Button onClick={onSignOut} variant="outline" size="sm">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+             <div className="flex items-center gap-2">
+                <NewItemModal />
+                <Button onClick={onSignOut} variant="outline" size="sm">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -112,7 +114,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                     <TransactionList />
                   </CardContent>
                 </Card>
-                <BudgetTracker />
               </div>
               <div className="space-y-6">
                  {userProfile?.role === 'owner' && (
@@ -126,24 +127,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                         </CardContent>
                     </Card>
                  )}
-                <Card className="w-full animate-fade-in shadow-xl">
-                  <CardHeader>
-                    <CardTitle>Add New Transaction</CardTitle>
-                    <CardDescription>Enter transaction details.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <TransactionForm />
-                  </CardContent>
-                </Card>
-                <Card className="w-full animate-fade-in shadow-xl">
-                  <CardHeader>
-                    <CardTitle>Set New Budget</CardTitle>
-                    <CardDescription>Define a new budget for a category.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <BudgetForm />
-                  </CardContent>
-                </Card>
+                 <BudgetTracker />
               </div>
             </div>
         </TabsContent>

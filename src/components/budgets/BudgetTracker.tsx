@@ -21,6 +21,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface Budget {
   id: string;
@@ -59,11 +60,6 @@ export default function BudgetTracker() {
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists() || !userDoc.data().familyId) {
-        toast({
-          variant: "destructive",
-          title: "Family ID not found",
-          description: "Cannot fetch budgets without a family ID.",
-        });
         setLoading(false);
         return;
       }
@@ -142,57 +138,39 @@ export default function BudgetTracker() {
     }).format(amount);
   };
 
-  if (loading) {
-    return (
-      <Card className="w-full animate-fade-in shadow-xl">
-        <CardHeader>
-          <CardTitle>Budget Tracker</CardTitle>
-          <CardDescription>Your budget performance for the current period.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (budgetsWithSpending.length === 0) {
-    return (
-        <Card className="w-full animate-fade-in shadow-xl">
-            <CardHeader>
-              <CardTitle>Budget Tracker</CardTitle>
-              <CardDescription>Your budget performance for the current period.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-center text-muted-foreground">No budgets set yet.</p>
-            </CardContent>
-        </Card>
-    );
-  }
-
   return (
     <Card className="w-full animate-fade-in shadow-xl">
       <CardHeader>
         <CardTitle>Budget Tracker</CardTitle>
         <CardDescription>Your budget performance for the current period.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {budgetsWithSpending.map((budget) => (
-          <div key={budget.id} className="space-y-2">
-            <div className="flex justify-between items-baseline">
-                <p className="font-semibold">{budget.category} <span className="text-sm text-muted-foreground font-normal">({budget.month})</span></p>
-                <p className="text-sm text-muted-foreground">
-                    <span className={`${budget.remaining < 0 ? 'text-red-600' : 'text-green-600'} font-medium`}>{formatCurrency(budget.spent)}</span> / {formatCurrency(budget.amount)}
-                </p>
+      <CardContent>
+        {loading ? (
+            <div className="space-y-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
             </div>
-            <Progress value={budget.progress} className="h-3" />
-            <p className="text-xs text-right text-muted-foreground">
-                {budget.remaining >= 0 ? `${formatCurrency(budget.remaining)} remaining` : `${formatCurrency(Math.abs(budget.remaining))} over budget`}
-            </p>
-          </div>
-        ))}
+        ) : budgetsWithSpending.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No budgets set yet.</p>
+        ) : (
+            <ScrollArea className="h-[250px] space-y-6">
+                {budgetsWithSpending.map((budget) => (
+                <div key={budget.id} className="space-y-2 pr-4">
+                    <div className="flex justify-between items-baseline">
+                        <p className="font-semibold">{budget.category} <span className="text-sm text-muted-foreground font-normal">({budget.month})</span></p>
+                        <p className="text-sm text-muted-foreground">
+                            <span className={`${budget.remaining < 0 ? 'text-red-600' : 'text-green-600'} font-medium`}>{formatCurrency(budget.spent)}</span> / {formatCurrency(budget.amount)}
+                        </p>
+                    </div>
+                    <Progress value={budget.progress} className="h-3" />
+                    <p className="text-xs text-right text-muted-foreground">
+                        {budget.remaining >= 0 ? `${formatCurrency(budget.remaining)} remaining` : `${formatCurrency(Math.abs(budget.remaining))} over budget`}
+                    </p>
+                </div>
+                ))}
+            </ScrollArea>
+        )}
       </CardContent>
     </Card>
   );

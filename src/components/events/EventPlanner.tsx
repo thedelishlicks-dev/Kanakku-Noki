@@ -41,7 +41,13 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { ScrollArea } from "../ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import EventCategoryManager from "./EventCategoryManager";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Event name is required." }),
@@ -303,27 +309,27 @@ export default function EventPlanner() {
                         <p className="text-sm text-muted-foreground">Create one to start planning!</p>
                     </div>
                 ) : (
-                    <ScrollArea className="h-[350px]">
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Estimated Cost</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {events.map((event) => (
-                            <TableRow key={event.id}>
-                                <TableCell className="font-medium">{event.name}</TableCell>
-                                <TableCell>{formatDate(event.eventDate)}</TableCell>
-                                <TableCell className="text-right font-semibold text-primary">
+                    <ScrollArea className="h-[calc(100vh-18rem)]">
+                       <Accordion type="single" collapsible className="w-full">
+                         {events.map((event) => (
+                           <AccordionItem value={event.id} key={event.id}>
+                            <AccordionTrigger>
+                               <div className="flex justify-between items-center w-full pr-4">
+                                  <div>
+                                    <p className="font-medium text-left">{event.name}</p>
+                                    <p className="text-sm text-muted-foreground font-normal text-left">{formatDate(event.eventDate)}</p>
+                                  </div>
+                                  <p className="font-semibold text-primary">
                                     {formatCurrency(event.estimatedCost)}
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
+                                  </p>
+                               </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <EventCategoryManager eventId={event.id} />
+                            </AccordionContent>
+                           </AccordionItem>
+                         ))}
+                       </Accordion>
                     </ScrollArea>
                 )}
             </CardContent>

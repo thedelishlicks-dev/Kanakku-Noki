@@ -9,6 +9,7 @@ import {
   query,
   where,
   limit,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -21,6 +22,47 @@ function generateInviteCode(): string {
 }
 
 /**
+ * Creates a batch of default categories for a new family.
+ * @param familyId The ID of the family to add categories to.
+ */
+async function createDefaultCategories(familyId: string): Promise<void> {
+    const batch = writeBatch(db);
+    const categoriesRef = collection(db, "categories");
+
+    const defaultExpenseCategories = [
+        "Food", "Transport", "Housing", "Utilities", "Health", "Entertainment", "Shopping", "Other"
+    ];
+    const defaultIncomeCategories = [
+        "Salary", "Bonus", "Investment", "Gift", "Other"
+    ];
+
+    defaultExpenseCategories.forEach(name => {
+        const docRef = doc(categoriesRef);
+        batch.set(docRef, { 
+            name, 
+            type: "expense", 
+            familyId, 
+            isDefault: true,
+            createdAt: new Date(),
+        });
+    });
+
+    defaultIncomeCategories.forEach(name => {
+        const docRef = doc(categoriesRef);
+        batch.set(docRef, { 
+            name, 
+            type: "income", 
+            familyId, 
+            isDefault: true,
+            createdAt: new Date(),
+        });
+    });
+
+    await batch.commit();
+}
+
+
+/**
  * Creates a new family document and sets the creating user as the owner.
  * @param userId The ID of the user creating the family.
  */
@@ -31,6 +73,9 @@ export async function createFamily(userId: string): Promise<void> {
     createdAt: new Date(),
     inviteCode: inviteCode,
   });
+
+  // After creating the family, create default categories for them
+  await createDefaultCategories(familyRef.id);
 
   const userRef = doc(db, "users", userId);
   await runTransaction(db, async (transaction) => {

@@ -24,6 +24,7 @@ import AccountManagement from "../accounts/AccountManagement";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
+import CategoryManagement from "../categories/CategoryManagement";
 
 interface DashboardProps {
   user: User;
@@ -85,9 +86,10 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
       <DashboardSummary />
       
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="space-y-6 mt-6">
@@ -141,6 +143,9 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         </TabsContent>
         <TabsContent value="accounts" className="mt-6">
             <AccountManagement />
+        </TabsContent>
+         <TabsContent value="categories" className="mt-6">
+            <CategoryManagement />
         </TabsContent>
         <TabsContent value="reports" className="mt-6">
           <FinancialReports />

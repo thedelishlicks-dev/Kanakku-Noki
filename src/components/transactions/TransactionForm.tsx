@@ -38,7 +38,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  category: z.string().min(1, { message: "Category is required." }),
+  categoryId: z.string().min(1, { message: "Category is required." }),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
@@ -56,12 +56,34 @@ interface Account {
   name: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+}
+
 export default function TransactionForm() {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const { toast } = useToast();
+  
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      amount: 0,
+      description: "",
+      type: "expense",
+      categoryId: "",
+      date: new Date(),
+      accountId: "",
+      goalId: undefined,
+    },
+  });
+
+  const transactionType = form.watch("type");
 
   useEffect(() => {
     const fetchFamilyAndData = async () => {
@@ -84,9 +106,16 @@ export default function TransactionForm() {
             setAccounts(accountsData);
           });
 
+          const categoriesQuery = query(collection(db, "categories"), where("familyId", "==", fetchedFamilyId));
+          const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+            const categoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+            setCategories(categoriesData);
+          });
+
           return () => {
             unsubscribeGoals();
             unsubscribeAccounts();
+            unsubscribeCategories();
           };
         } else {
            toast({
@@ -104,23 +133,12 @@ export default function TransactionForm() {
         setFamilyId(null);
         setGoals([]);
         setAccounts([]);
+        setCategories([]);
       }
     })
     return () => unsubscribe();
   }, [toast]);
 
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      amount: 0,
-      description: "",
-      type: "expense",
-      category: "",
-      date: new Date(),
-      accountId: "",
-      goalId: undefined,
-    },
-  });
 
   async function onSubmit(values: TransactionFormValues) {
     if (!auth.currentUser || !familyId) {
@@ -135,6 +153,7 @@ export default function TransactionForm() {
     setLoading(true);
     try {
       const transactionAmount = values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount);
+      const category = categories.find(c => c.id === values.categoryId);
 
       await runTransaction(db, async (transaction) => {
           const transactionRef = doc(collection(db, "transactions"));
@@ -142,6 +161,7 @@ export default function TransactionForm() {
 
           const transactionData: any = {
             ...values,
+            category: category?.name, // Store category name for display
             amount: transactionAmount,
             uid: auth.currentUser.uid,
             familyId: familyId,
@@ -164,7 +184,7 @@ export default function TransactionForm() {
         amount: 0,
         description: "",
         type: "expense",
-        category: "",
+        categoryId: "",
         date: new Date(),
         accountId: "",
         goalId: undefined,
@@ -242,17 +262,22 @@ export default function TransactionForm() {
         />
         <FormField
           control={form.control}
-          name="category"
+          name="categoryId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., Food, Transport"
-                  {...field}
-                  disabled={!familyId}
-                />
-              </FormControl>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!familyId || categories.length === 0}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.filter(c => c.type === transactionType).map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                </Select>
               <FormMessage />
             </FormItem>
           )}

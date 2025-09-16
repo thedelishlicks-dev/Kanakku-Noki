@@ -27,7 +27,11 @@ const formSchema = z.object({
 
 type BudgetFormValues = z.infer<typeof formSchema>;
 
-export default function BudgetForm() {
+interface BudgetFormProps {
+    onBudgetCreated?: () => void;
+}
+
+export default function BudgetForm({ onBudgetCreated }: BudgetFormProps) {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -49,7 +53,7 @@ export default function BudgetForm() {
       }
     };
     fetchFamilyId();
-  }, []);
+  }, [toast]);
 
 
   const form = useForm<BudgetFormValues>({
@@ -94,6 +98,7 @@ export default function BudgetForm() {
         description: "Budget set successfully.",
       });
       form.reset();
+      onBudgetCreated?.();
     } catch (error: any) {
       console.error("Error adding budget:", error);
       toast({

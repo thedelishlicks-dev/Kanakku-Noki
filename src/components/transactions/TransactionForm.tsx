@@ -77,7 +77,11 @@ interface EventCategory {
     name: string;
 }
 
-export default function TransactionForm() {
+interface TransactionFormProps {
+    onTransactionCreated?: () => void;
+}
+
+export default function TransactionForm({ onTransactionCreated }: TransactionFormProps) {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -251,6 +255,7 @@ export default function TransactionForm() {
         eventId: "none",
         eventCategoryId: "none",
       });
+      onTransactionCreated?.();
     } catch (error: any) {
       console.error("Error adding transaction:", error);
       toast({
@@ -514,5 +519,3 @@ export default function TransactionForm() {
     </Form>
   );
 }
-
-    

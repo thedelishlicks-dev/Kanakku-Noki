@@ -20,6 +20,8 @@ import EventForm from "../events/EventForm";
 export default function NewItemModal() {
   const [isOpen, setIsOpen] = useState(false);
 
+  const closeForm = () => setIsOpen(false);
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -27,7 +29,7 @@ export default function NewItemModal() {
           <PlusCircle className="mr-2 h-4 w-4" /> Add New
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a New Item</DialogTitle>
           <DialogDescription>
@@ -42,16 +44,16 @@ export default function NewItemModal() {
             <TabsTrigger value="event">Event</TabsTrigger>
           </TabsList>
           <TabsContent value="transaction">
-            <TransactionForm />
+            <TransactionForm onTransactionCreated={closeForm} />
           </TabsContent>
           <TabsContent value="budget">
-            <BudgetForm />
+            <BudgetForm onBudgetCreated={closeForm} />
           </TabsContent>
           <TabsContent value="goal">
-            <GoalForm onGoalCreated={() => setIsOpen(false)} />
+            <GoalForm onGoalCreated={closeForm} />
           </TabsContent>
           <TabsContent value="event">
-            <EventForm onEventCreated={() => setIsOpen(false)} />
+            <EventForm onEventCreated={closeForm} />
           </TabsContent>
         </Tabs>
       </DialogContent>

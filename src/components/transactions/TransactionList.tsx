@@ -57,8 +57,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
-  SelectLabel,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -76,6 +74,8 @@ interface Transaction {
   amount: number;
   description: string;
   category: string;
+  categoryId: string;
+  subcategory?: string;
   type: "income" | "expense";
   date: Timestamp;
   accountId: string;
@@ -105,11 +105,13 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  category: z.string().min(1, { message: "Category is required." }),
+  categoryId: z.string().min(1, { message: "Category is required." }),
+  subcategory: z.string().optional(),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
 });
+
 
 type TransactionFormValues = z.infer<typeof formSchema>;
 
@@ -129,8 +131,12 @@ export default function TransactionList() {
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
   });
-
+  
   const transactionType = form.watch("type");
+  const selectedCategoryId = form.watch("categoryId");
+  
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const subcategories = selectedCategory?.subcategories || [];
 
    useEffect(() => {
     if (showNeedsReviewOnly) {
@@ -146,11 +152,23 @@ export default function TransactionList() {
         ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
-        category: editingTransaction.category,
+        categoryId: editingTransaction.categoryId,
+        subcategory: editingTransaction.subcategory || "",
         goalId: editingTransaction.goalId || "none",
       });
     }
-  }, [editingTransaction, form, categories]);
+  }, [editingTransaction, form]);
+  
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setEditingTransaction(null);
+    }
+  },[isDialogOpen])
+  
+   useEffect(() => {
+    form.setValue('subcategory', '');
+  }, [selectedCategoryId, form]);
+
 
   const handleDelete = async (transaction: Transaction) => {
     try {
@@ -224,14 +242,22 @@ export default function TransactionList() {
         const newAmount = values.type === 'expense' ? -Math.abs(values.amount) : Math.abs(values.amount);
         const oldAmount = editingTransaction.amount;
         const amountDifference = newAmount - oldAmount;
+        
+        const categoryName = categories.find(c => c.id === values.categoryId)?.name || 'Unknown';
+        const fullCategory = values.subcategory ? `${categoryName}: ${values.subcategory}` : categoryName;
 
         const updatedData: any = {
           ...values,
           amount: newAmount,
+          category: fullCategory,
         };
+
         if (!values.goalId || values.goalId === "none") {
-          delete updatedData.goalId;
+          updatedData.goalId = null;
         }
+         if (!values.subcategory) {
+           updatedData.subcategory = null;
+         }
 
         t.update(transactionRef, updatedData);
 
@@ -486,7 +512,8 @@ export default function TransactionList() {
                     <FormLabel>Type</FormLabel>
                     <Select onValueChange={(value) => {
                       field.onChange(value);
-                      form.setValue('category', ''); // Reset category on type change
+                      form.setValue('categoryId', '');
+                      form.setValue('subcategory', '');
                     }} value={field.value} disabled={isUpdating}>
                       <FormControl>
                         <SelectTrigger>
@@ -504,11 +531,14 @@ export default function TransactionList() {
               />
               <FormField
                 control={form.control}
-                name="category"
+                name="categoryId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating || categories.length === 0}>
+                     <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        form.setValue('subcategory', '');
+                     }} value={field.value} disabled={isUpdating || categories.length === 0}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a category" />
@@ -516,15 +546,7 @@ export default function TransactionList() {
                       </FormControl>
                       <SelectContent>
                         {categories.filter(c => c.type === transactionType).map(cat => (
-                           <SelectGroup key={cat.id}>
-                            <SelectLabel>{cat.name}</SelectLabel>
-                            <SelectItem value={cat.name}>{cat.name} (General)</SelectItem>
-                            {cat.subcategories?.map(sub => (
-                                <SelectItem key={`${cat.id}-${sub}`} value={`${cat.name}: ${sub}`}>
-                                    {sub}
-                                </SelectItem>
-                            ))}
-                        </SelectGroup>
+                           <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -532,6 +554,30 @@ export default function TransactionList() {
                   </FormItem>
                 )}
               />
+               {subcategories.length > 0 && (
+                <FormField
+                    control={form.control}
+                    name="subcategory"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Subcategory</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isUpdating}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select a subcategory" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {subcategories.map(sub => (
+                            <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                )}
                <FormField
                 control={form.control}
                 name="accountId"
@@ -632,3 +678,5 @@ export default function TransactionList() {
     </>
   );
 }
+
+    

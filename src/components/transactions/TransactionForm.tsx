@@ -23,8 +23,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
-  SelectLabel,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -40,11 +38,13 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
-  category: z.string().min(1, { message: "Category is required." }),
+  categoryId: z.string().min(1, { message: "Category is required." }),
+  subcategory: z.string().optional(),
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
 });
+
 
 type TransactionFormValues = z.infer<typeof formSchema>;
 
@@ -79,7 +79,8 @@ export default function TransactionForm() {
       amount: 0,
       description: "",
       type: "expense",
-      category: "",
+      categoryId: "",
+      subcategory: "",
       date: new Date(),
       accountId: "",
       goalId: undefined,
@@ -87,6 +88,19 @@ export default function TransactionForm() {
   });
 
   const transactionType = form.watch("type");
+  const selectedCategoryId = form.watch("categoryId");
+  
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const subcategories = selectedCategory?.subcategories || [];
+
+  useEffect(() => {
+    form.reset({
+      ...form.getValues(),
+      categoryId: "",
+      subcategory: "",
+    })
+  }, [transactionType, form]);
+
 
   useEffect(() => {
     const fetchFamilyAndData = async () => {
@@ -160,9 +174,13 @@ export default function TransactionForm() {
       await runTransaction(db, async (transaction) => {
           const transactionRef = doc(collection(db, "transactions"));
           const accountRef = doc(db, "accounts", values.accountId);
+          
+          const categoryName = categories.find(c => c.id === values.categoryId)?.name || 'Unknown';
+          const fullCategory = values.subcategory ? `${categoryName}: ${values.subcategory}` : categoryName;
 
           const transactionData: any = {
             ...values,
+            category: fullCategory,
             amount: transactionAmount,
             uid: auth.currentUser.uid,
             familyId: familyId,
@@ -171,6 +189,9 @@ export default function TransactionForm() {
 
           if (!values.goalId || values.goalId === "none") {
             delete transactionData.goalId;
+          }
+          if (!values.subcategory) {
+             delete transactionData.subcategory;
           }
           
           transaction.set(transactionRef, transactionData);
@@ -185,7 +206,8 @@ export default function TransactionForm() {
         amount: 0,
         description: "",
         type: "expense",
-        category: "",
+        categoryId: "",
+        subcategory: "",
         date: new Date(),
         accountId: "",
         goalId: undefined,
@@ -246,10 +268,7 @@ export default function TransactionForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={(value) => {
-                field.onChange(value);
-                form.setValue('category', ''); // Reset category on type change
-              }} value={field.value} disabled={!familyId}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a type" />
@@ -266,11 +285,14 @@ export default function TransactionForm() {
         />
         <FormField
           control={form.control}
-          name="category"
+          name="categoryId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!familyId || categories.length === 0}>
+                <Select onValueChange={(value) => {
+                  field.onChange(value)
+                  form.setValue('subcategory', '');
+                }} value={field.value} disabled={!familyId || categories.length === 0}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -278,15 +300,7 @@ export default function TransactionForm() {
                     </FormControl>
                     <SelectContent>
                       {categories.filter(c => c.type === transactionType).map(cat => (
-                        <SelectGroup key={cat.id}>
-                            <SelectLabel>{cat.name}</SelectLabel>
-                            <SelectItem value={cat.name}>{cat.name} (General)</SelectItem>
-                            {cat.subcategories?.map(sub => (
-                                <SelectItem key={`${cat.id}-${sub}`} value={`${cat.name}: ${sub}`}>
-                                    {sub}
-                                </SelectItem>
-                            ))}
-                        </SelectGroup>
+                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                 </Select>
@@ -294,6 +308,30 @@ export default function TransactionForm() {
             </FormItem>
           )}
         />
+        {subcategories.length > 0 && (
+           <FormField
+            control={form.control}
+            name="subcategory"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Subcategory</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!familyId}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a subcategory" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {subcategories.map(sub => (
+                           <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                        ))}
+                      </SelectContent>
+                  </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="accountId"
@@ -389,3 +427,5 @@ export default function TransactionForm() {
     </Form>
   );
 }
+
+    

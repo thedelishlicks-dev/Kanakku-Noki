@@ -11,6 +11,8 @@ import {
   query,
   orderBy,
   doc,
+  where,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -34,10 +36,11 @@ import {
   TableRow,
 } from "../ui/table";
 import { Skeleton } from "../ui/skeleton";
-import { Separator } from "../ui/separator";
+import { Progress } from "../ui/progress";
 
 interface EventCategoryManagerProps {
   eventId: string;
+  familyId: string | null;
 }
 
 const formSchema = z.object({
@@ -55,31 +58,71 @@ interface EventCategory {
   estimatedBudget: number;
 }
 
-export default function EventCategoryManager({ eventId }: EventCategoryManagerProps) {
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'income' | 'expense';
+    date: Timestamp;
+    eventId?: string;
+    eventCategoryId?: string;
+}
+
+interface EventCategoryWithSpending extends EventCategory {
+    spent: number;
+    progress: number;
+}
+
+export default function EventCategoryManager({ eventId, familyId }: EventCategoryManagerProps) {
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
-  const [categories, setCategories] = useState<EventCategory[]>([]);
+  const [categories, setCategories] = useState<EventCategoryWithSpending[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!eventId) {
+    if (!eventId || !familyId) {
       setListLoading(false);
       return;
     }
     setListLoading(true);
-    const q = query(
+    const catQuery = query(
       collection(db, "events", eventId, "categories"),
       orderBy("name", "asc")
     );
-    const unsubscribe = onSnapshot(
-      q,
+    const unsubscribeCats = onSnapshot(
+      catQuery,
       (snapshot) => {
         const categoriesData: EventCategory[] = [];
         snapshot.forEach((doc) => {
           categoriesData.push({ id: doc.id, ...doc.data() } as EventCategory);
         });
-        setCategories(categoriesData);
-        setListLoading(false);
+
+        const transQuery = query(
+            collection(db, "transactions"),
+            where("familyId", "==", familyId),
+            where("eventId", "==", eventId)
+        );
+
+        const unsubscribeTrans = onSnapshot(transQuery, (transSnapshot) => {
+            const transactionsData: Transaction[] = [];
+            transSnapshot.forEach(doc => {
+                transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+            });
+
+            const categoriesWithSpending = categoriesData.map(cat => {
+                const spent = transactionsData
+                    .filter(t => t.eventCategoryId === cat.id && t.type === 'expense')
+                    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                
+                const progress = cat.estimatedBudget > 0 ? (spent / cat.estimatedBudget) * 100 : 0;
+
+                return { ...cat, spent, progress };
+            });
+
+            setCategories(categoriesWithSpending);
+            setListLoading(false);
+        });
+        
+        return () => unsubscribeTrans();
       },
       (error) => {
         console.error("Error fetching event categories:", error);
@@ -92,8 +135,8 @@ export default function EventCategoryManager({ eventId }: EventCategoryManagerPr
       }
     );
 
-    return () => unsubscribe();
-  }, [eventId, toast]);
+    return () => unsubscribeCats();
+  }, [eventId, familyId, toast]);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(formSchema),
@@ -204,14 +247,22 @@ export default function EventCategoryManager({ eventId }: EventCategoryManagerPr
                 <TableHeader>
                     <TableRow>
                         <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Budget</TableHead>
+                        <TableHead className="text-right">Budget vs Spent</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {categories.map(cat => (
                         <TableRow key={cat.id}>
                             <TableCell className="font-medium">{cat.name}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(cat.estimatedBudget)}</TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex flex-col items-end">
+                                    <span>
+                                        <span className={cat.spent > cat.estimatedBudget ? "text-destructive" : "text-green-600"}>{formatCurrency(cat.spent)}</span>
+                                        <span className="text-muted-foreground"> / {formatCurrency(cat.estimatedBudget)}</span>
+                                    </span>
+                                    <Progress value={cat.progress} className="h-2 w-24 mt-1" />
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

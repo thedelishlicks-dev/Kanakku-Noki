@@ -48,6 +48,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import EventCategoryManager from "./EventCategoryManager";
+import { Progress } from "../ui/progress";
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Event name is required." }),
@@ -64,11 +65,25 @@ interface Event {
   eventDate: Timestamp;
 }
 
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'income' | 'expense';
+    date: Timestamp;
+    eventId?: string;
+}
+
+interface EventWithCost extends Event {
+    currentCost: number;
+    progress: number;
+}
+
+
 export default function EventPlanner() {
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [familyId, setFamilyId] = useState<string | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventWithCost[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -112,13 +127,39 @@ export default function EventPlanner() {
         where("familyId", "==", familyId),
         orderBy("eventDate", "asc")
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeEvents = onSnapshot(q, (snapshot) => {
       const eventsData: Event[] = [];
       snapshot.forEach(doc => {
         eventsData.push({ id: doc.id, ...doc.data() } as Event);
       });
-      setEvents(eventsData);
-      setListLoading(false);
+      
+      const transQuery = query(
+        collection(db, "transactions"),
+        where("familyId", "==", familyId)
+      );
+
+      const unsubscribeTrans = onSnapshot(transQuery, (transSnapshot) => {
+        const transactionsData: Transaction[] = [];
+        transSnapshot.forEach(doc => {
+            transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+        });
+
+        const eventsWithCost = eventsData.map(event => {
+            const currentCost = transactionsData
+                .filter(t => t.eventId === event.id && t.type === 'expense')
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+            
+            const progress = event.estimatedCost > 0 ? (currentCost / event.estimatedCost) * 100 : 0;
+
+            return { ...event, currentCost, progress };
+        });
+
+        setEvents(eventsWithCost);
+        setListLoading(false);
+      });
+
+      return () => unsubscribeTrans();
+
     }, (error) => {
       console.error("Error fetching events:", error);
       toast({
@@ -129,7 +170,7 @@ export default function EventPlanner() {
       setListLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeEvents();
   }, [familyId, toast]);
 
   const form = useForm<EventFormValues>({
@@ -315,17 +356,20 @@ export default function EventPlanner() {
                            <AccordionItem value={event.id} key={event.id}>
                             <AccordionTrigger>
                                <div className="flex justify-between items-center w-full pr-4">
-                                  <div>
-                                    <p className="font-medium text-left">{event.name}</p>
-                                    <p className="text-sm text-muted-foreground font-normal text-left">{formatDate(event.eventDate)}</p>
+                                  <div className="text-left">
+                                    <p className="font-medium">{event.name}</p>
+                                    <p className="text-sm text-muted-foreground font-normal">{formatDate(event.eventDate)}</p>
                                   </div>
-                                  <p className="font-semibold text-primary">
-                                    {formatCurrency(event.estimatedCost)}
-                                  </p>
+                                   <div className="text-right">
+                                    <p className={`font-semibold ${event.currentCost > event.estimatedCost ? 'text-destructive' : 'text-primary'}`}>
+                                        {formatCurrency(event.currentCost)} / {formatCurrency(event.estimatedCost)}
+                                    </p>
+                                    <Progress value={event.progress} className="h-2 mt-1" />
+                                   </div>
                                </div>
                             </AccordionTrigger>
                             <AccordionContent>
-                                <EventCategoryManager eventId={event.id} />
+                                <EventCategoryManager eventId={event.id} familyId={familyId} />
                             </AccordionContent>
                            </AccordionItem>
                          ))}

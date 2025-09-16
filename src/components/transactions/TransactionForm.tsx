@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { addDoc, collection, doc, getDoc, query, where, onSnapshot, Timestamp, runTransaction, increment } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, query, where, onSnapshot, Timestamp, runTransaction, increment, orderBy } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,8 @@ const formSchema = z.object({
   date: z.date(),
   accountId: z.string().min(1, { message: "Account is required." }),
   goalId: z.string().optional(),
+  eventId: z.string().optional(),
+  eventCategoryId: z.string().optional(),
 });
 
 
@@ -65,12 +67,24 @@ interface Category {
   subcategories?: string[];
 }
 
+interface Event {
+    id: string;
+    name: string;
+}
+
+interface EventCategory {
+    id: string;
+    name: string;
+}
+
 export default function TransactionForm() {
   const [loading, setLoading] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventCategories, setEventCategories] = useState<EventCategory[]>([]);
   const { toast } = useToast();
   
   const form = useForm<TransactionFormValues>({
@@ -83,12 +97,15 @@ export default function TransactionForm() {
       subcategory: "",
       date: new Date(),
       accountId: "",
-      goalId: undefined,
+      goalId: "none",
+      eventId: "none",
+      eventCategoryId: "none",
     },
   });
 
   const transactionType = form.watch("type");
   const selectedCategoryId = form.watch("categoryId");
+  const selectedEventId = form.watch("eventId");
   
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
   const subcategories = selectedCategory?.subcategories || [];
@@ -100,6 +117,20 @@ export default function TransactionForm() {
       subcategory: "",
     })
   }, [transactionType, form]);
+  
+  useEffect(() => {
+    form.setValue('eventCategoryId', 'none');
+    if (selectedEventId && selectedEventId !== "none") {
+        const q = query(collection(db, "events", selectedEventId, "categories"), orderBy("name"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const eventCats = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as EventCategory));
+            setEventCategories(eventCats);
+        });
+        return () => unsubscribe();
+    } else {
+        setEventCategories([]);
+    }
+  }, [selectedEventId, form]);
 
 
   useEffect(() => {
@@ -129,10 +160,17 @@ export default function TransactionForm() {
             setCategories(categoriesData);
           });
 
+          const eventsQuery = query(collection(db, "events"), where("familyId", "==", fetchedFamilyId));
+          const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+              const eventsData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Event));
+              setEvents(eventsData);
+          });
+
           return () => {
             unsubscribeGoals();
             unsubscribeAccounts();
             unsubscribeCategories();
+            unsubscribeEvents();
           };
         } else {
            toast({
@@ -151,6 +189,7 @@ export default function TransactionForm() {
         setGoals([]);
         setAccounts([]);
         setCategories([]);
+        setEvents([]);
       }
     })
     return () => unsubscribe();
@@ -187,12 +226,10 @@ export default function TransactionForm() {
             createdAt: new Date(),
           };
 
-          if (!values.goalId || values.goalId === "none") {
-            delete transactionData.goalId;
-          }
-          if (!values.subcategory) {
-             delete transactionData.subcategory;
-          }
+          if (!values.goalId || values.goalId === "none") delete transactionData.goalId;
+          if (!values.subcategory) delete transactionData.subcategory;
+          if (!values.eventId || values.eventId === "none") delete transactionData.eventId;
+          if (!values.eventCategoryId || values.eventCategoryId === "none") delete transactionData.eventCategoryId;
           
           transaction.set(transactionRef, transactionData);
           transaction.update(accountRef, { balance: increment(transactionAmount) });
@@ -210,7 +247,9 @@ export default function TransactionForm() {
         subcategory: "",
         date: new Date(),
         accountId: "",
-        goalId: undefined,
+        goalId: "none",
+        eventId: "none",
+        eventCategoryId: "none",
       });
     } catch (error: any) {
       console.error("Error adding transaction:", error);
@@ -377,6 +416,54 @@ export default function TransactionForm() {
             </FormItem>
           )}
         />
+         <FormField
+          control={form.control}
+          name="eventId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Link to Event (Optional)</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!familyId || events.length === 0}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an event" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {events.map(event => (
+                    <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {eventCategories.length > 0 && selectedEventId !== 'none' && (
+             <FormField
+                control={form.control}
+                name="eventCategoryId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Event Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!familyId}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select event category" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                        {eventCategories.map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+             />
+        )}
         <FormField
           control={form.control}
           name="date"

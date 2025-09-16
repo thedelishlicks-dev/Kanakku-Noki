@@ -146,10 +146,14 @@ export default function InviteMembers() {
 
     } catch (error: any) {
       console.error("Error sending sign-in link:", error);
+      let description = "An unexpected error occurred while sending the invitation.";
+      if (error.code === 'auth/operation-not-allowed') {
+          description = "Email link sign-in is not enabled in your Firebase project. Please share the invite code instead.";
+      }
       toast({
         variant: "destructive",
         title: "Invitation Failed",
-        description: error.message || "An unexpected error occurred while sending the invitation.",
+        description: description,
       });
     } finally {
       setLoading(false);

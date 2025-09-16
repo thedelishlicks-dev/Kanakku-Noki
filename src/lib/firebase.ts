@@ -2,6 +2,7 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { getAuth, type User } from 'firebase/auth';
+import { createFamily } from './family';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -60,7 +61,7 @@ export const upsertUserDocument = async (user: User, familyId: string | null = n
       const updates: { familyId?: string; role?: 'owner' | 'member' } = {};
 
       if (familyId && userData.familyId !== familyId) {
-        // Subcase 2a: Existing user is accepting an invitation to a new family.
+        // Subcase 2a: Existing user (who might not have a family) is accepting an invitation.
         updates.familyId = familyId;
         updates.role = 'member';
       }

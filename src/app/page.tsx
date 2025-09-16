@@ -59,6 +59,7 @@ export default function Home() {
               description: "The sign-in link is invalid or has expired.",
             });
           } finally {
+            // Clean up the URL
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.delete('familyId');
             newUrl.searchParams.delete('apiKey');

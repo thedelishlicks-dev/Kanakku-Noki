@@ -124,14 +124,15 @@ export default function EventPlanner() {
     setListLoading(true);
     const q = query(
         collection(db, "events"), 
-        where("familyId", "==", familyId),
-        orderBy("eventDate", "asc")
+        where("familyId", "==", familyId)
     );
     const unsubscribeEvents = onSnapshot(q, (snapshot) => {
       const eventsData: Event[] = [];
       snapshot.forEach(doc => {
         eventsData.push({ id: doc.id, ...doc.data() } as Event);
       });
+      // Sort events by date on the client side
+      eventsData.sort((a, b) => a.eventDate.toMillis() - b.eventDate.toMillis());
       
       const transQuery = query(
         collection(db, "transactions"),

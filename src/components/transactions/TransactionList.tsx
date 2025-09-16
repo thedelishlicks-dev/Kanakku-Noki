@@ -115,7 +115,6 @@ interface EventCategory {
 
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
-  description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
   categoryId: z.string().min(1, { message: "Category is required." }),
   subcategory: z.string().optional(),
@@ -166,7 +165,6 @@ export default function TransactionList() {
   useEffect(() => {
     if (editingTransaction) {
       form.reset({
-        ...editingTransaction,
         amount: Math.abs(editingTransaction.amount),
         date: editingTransaction.date.toDate(),
         categoryId: editingTransaction.categoryId,
@@ -174,6 +172,8 @@ export default function TransactionList() {
         goalId: editingTransaction.goalId || "none",
         eventId: editingTransaction.eventId || "none",
         eventCategoryId: editingTransaction.eventCategoryId || "none",
+        type: editingTransaction.type,
+        accountId: editingTransaction.accountId,
       });
     }
   }, [editingTransaction, form]);
@@ -281,6 +281,7 @@ export default function TransactionList() {
 
         const updatedData: any = {
           ...values,
+          description: `${categoryName}${values.subcategory ? ' - ' + values.subcategory : ''}`,
           amount: newAmount,
           category: fullCategory,
         };
@@ -525,19 +526,6 @@ export default function TransactionList() {
                     <FormLabel>Amount</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} disabled={isUpdating} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={isUpdating} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

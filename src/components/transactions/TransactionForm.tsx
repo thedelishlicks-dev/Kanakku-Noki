@@ -36,7 +36,6 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
-  description: z.string().min(1, { message: "Description is required." }),
   type: z.enum(["income", "expense"]),
   categoryId: z.string().min(1, { message: "Category is required." }),
   subcategory: z.string().optional(),
@@ -95,7 +94,6 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: 0,
-      description: "",
       type: "expense",
       categoryId: "",
       subcategory: "",
@@ -118,7 +116,6 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
     form.reset({
       ...form.getValues(),
       amount: 0,
-      description: "",
       categoryId: "",
       subcategory: "",
     })
@@ -225,6 +222,7 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
 
           const transactionData: any = {
             ...values,
+            description: `${categoryName}${values.subcategory ? ' - ' + values.subcategory : ''}`,
             category: fullCategory,
             amount: transactionAmount,
             uid: auth.currentUser.uid,
@@ -247,7 +245,6 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
       });
       form.reset({
         amount: 0,
-        description: "",
         type: "expense",
         categoryId: "",
         subcategory: "",
@@ -283,23 +280,6 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
                 <Input
                   type="number"
                   placeholder="0.00"
-                  {...field}
-                  disabled={!familyId}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., Groceries, Salary"
                   {...field}
                   disabled={!familyId}
                 />

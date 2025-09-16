@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Home, Wallet, LayoutGrid, BarChart2, Plus, Calendar } from "lucide-react";
+import { Home, Wallet, BarChart2, Plus, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import AddNewItemModal from "./AddNewItemModal";
@@ -24,7 +24,7 @@ export default function BottomNavigationBar({ activeView, setActiveView }: Botto
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-background border-t border-border">
+      <div className="fixed bottom-0 left-0 z-40 w-full h-16 bg-background border-t border-border">
         <div className="grid h-full grid-cols-5 font-medium">
           {navItems.map((item) => (
             <Button
@@ -45,7 +45,7 @@ export default function BottomNavigationBar({ activeView, setActiveView }: Botto
               }}
             >
               {item.name === "add" ? (
-                 <div className="absolute -top-6 flex items-center justify-center h-14 w-14 bg-primary rounded-full text-primary-foreground shadow-lg">
+                 <div className="absolute -top-6 flex items-center justify-center h-14 w-14 bg-primary rounded-full text-primary-foreground shadow-lg hover:bg-primary/90">
                     <item.icon className="w-8 h-8" />
                  </div>
               ) : (

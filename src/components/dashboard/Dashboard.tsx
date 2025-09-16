@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LogOut, Users, Settings } from "lucide-react";
+import { LogOut, Users, Settings, LayoutGrid } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -41,6 +41,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [showFamilyManagement, setShowFamilyManagement] = useState(false);
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -75,14 +76,15 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         </Card>
       )
     }
+    if (showCategoryManagement) {
+      return <CategoryManagement />;
+    }
 
     switch (activeView) {
       case "dashboard":
         return <DashboardView />;
       case "accounts":
         return <AccountManagement />;
-      case "categories":
-        return <CategoryManagement />;
       case "planning":
         return <PlanningView />;
       case "reports":
@@ -91,6 +93,12 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         return <DashboardView />;
     }
   };
+  
+  const handleViewChange = (view: string) => {
+    setShowFamilyManagement(false);
+    setShowCategoryManagement(false);
+    setActiveView(view);
+  }
 
   return (
     <div className="w-full max-w-7xl space-y-6 pb-24">
@@ -120,12 +128,21 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
                      {userProfile?.role === 'owner' && (
                         <DropdownMenuItem onSelect={() => {
                           setShowFamilyManagement(true);
+                          setShowCategoryManagement(false);
                           setActiveView('');
                         }}>
                           <Users className="mr-2 h-4 w-4" />
                           <span>Family Management</span>
                         </DropdownMenuItem>
                      )}
+                     <DropdownMenuItem onSelect={() => {
+                        setShowFamilyManagement(false);
+                        setShowCategoryManagement(true);
+                        setActiveView('');
+                     }}>
+                        <LayoutGrid className="mr-2 h-4 w-4" />
+                        <span>Categories</span>
+                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={onSignOut}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign Out</span>
@@ -141,10 +158,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         {renderContent()}
       </div>
 
-      <BottomNavigationBar activeView={activeView} setActiveView={(view) => {
-        setShowFamilyManagement(false);
-        setActiveView(view);
-      }} />
+      <BottomNavigationBar activeView={activeView} setActiveView={handleViewChange} />
     </div>
   );
 }

@@ -32,6 +32,7 @@ import {
 import EventCategoryManager from "./EventCategoryManager";
 import { Progress } from "../ui/progress";
 import EventForm from "./EventForm";
+import GoalForm from "../goals/GoalForm";
 
 interface Event {
   id: string;
@@ -161,7 +162,7 @@ export default function EventPlanner() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-1">
+      <div className="md:col-span-1 space-y-6">
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
@@ -169,6 +170,15 @@ export default function EventPlanner() {
           </CardHeader>
           <CardContent>
             <EventForm />
+          </CardContent>
+        </Card>
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle>Create New Goal</CardTitle>
+            <CardDescription>Set a new financial goal for your family.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GoalForm />
           </CardContent>
         </Card>
       </div>

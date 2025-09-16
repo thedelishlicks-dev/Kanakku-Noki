@@ -236,7 +236,7 @@ export default function EventPlanner() {
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
-            <CardDescription>Add a new event to plan for.</CardDescription>
+            <CardDescription>Add a new event to plan and budget for.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -332,8 +332,8 @@ export default function EventPlanner() {
       <div className="md:col-span-2">
          <Card className="shadow-xl">
             <CardHeader>
-                <CardTitle>Upcoming Events</CardTitle>
-                <CardDescription>A list of your family's planned events.</CardDescription>
+                <CardTitle>Event Details & Budgets</CardTitle>
+                <CardDescription>Manage categories and budgets for your events.</CardDescription>
             </CardHeader>
             <CardContent>
                 {listLoading ? (

@@ -26,6 +26,7 @@ import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import CategoryManagement from "../categories/CategoryManagement";
 import EventPlanner from "../events/EventPlanner";
+import EventsDashboard from "../events/EventsDashboard";
 
 interface DashboardProps {
   user: User;
@@ -91,11 +92,12 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="planning">Planning</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="space-y-6 mt-6">
            <GoalsTracker />
+           <EventsDashboard />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2 space-y-6">
@@ -149,7 +151,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
          <TabsContent value="categories" className="mt-6">
             <CategoryManagement />
         </TabsContent>
-        <TabsContent value="events" className="mt-6">
+        <TabsContent value="planning" className="mt-6">
           <EventPlanner />
         </TabsContent>
         <TabsContent value="reports" className="mt-6">

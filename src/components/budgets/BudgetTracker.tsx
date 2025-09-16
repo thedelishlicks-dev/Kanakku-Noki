@@ -99,7 +99,8 @@ export default function BudgetTracker() {
             const spent = transactionsData
               .filter((t) => {
                 const transactionMonth = t.date.toDate().toLocaleString('default', { month: 'long', year: 'numeric' }).toLowerCase();
-                return t.category.toLowerCase() === budget.category.toLowerCase() && transactionMonth === budgetMonth;
+                const mainCategory = t.category.split(':')[0];
+                return mainCategory.toLowerCase() === budget.category.toLowerCase() && transactionMonth === budgetMonth;
               })
               .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 

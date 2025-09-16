@@ -116,7 +116,8 @@ export default function FinancialReports() {
           );
 
           const expenseByCategory = monthlyExpenses.reduce((acc, t) => {
-            acc[t.category] = (acc[t.category] || 0) + Math.abs(t.amount);
+            const mainCategory = t.category.split(':')[0];
+            acc[mainCategory] = (acc[mainCategory] || 0) + Math.abs(t.amount);
             return acc;
           }, {} as { [key: string]: number });
 

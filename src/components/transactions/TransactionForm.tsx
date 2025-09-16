@@ -117,6 +117,8 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
   useEffect(() => {
     form.reset({
       ...form.getValues(),
+      amount: 0,
+      description: "",
       categoryId: "",
       subcategory: "",
     })
@@ -495,7 +497,7 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" style={{ zIndex: 9999 }}>
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={field.value}

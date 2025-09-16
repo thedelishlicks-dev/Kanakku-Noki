@@ -178,7 +178,7 @@ export default function EventForm({ onEventCreated }: EventFormProps) {
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start" style={{ zIndex: 9999 }}>
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={field.value}

@@ -11,7 +11,6 @@ import SignUp from "@/components/auth/SignUp";
 import Onboarding from "@/components/auth/Onboarding";
 import Dashboard from "@/components/dashboard/Dashboard";
 import { Loader2 } from "lucide-react";
-import { createFamily } from "@/lib/family";
 
 interface UserProfile {
   email: string | null;

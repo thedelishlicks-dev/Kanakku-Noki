@@ -25,7 +25,7 @@ import { useEffect, useState } from "react";
 import CategoryManagement from "../categories/CategoryManagement";
 import EventPlanner from "../events/EventPlanner";
 import EventsDashboard from "../events/EventsDashboard";
-import NewItemModal from "./NewItemModal";
+import TransactionFormCard from "../transactions/TransactionFormCard";
 
 interface DashboardProps {
   user: User;
@@ -60,7 +60,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
   };
 
   return (
-    <div className="w-full max-w-6xl space-y-6">
+    <div className="w-full max-w-7xl space-y-6">
       <Card className="w-full animate-fade-in shadow-xl">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -77,7 +77,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
               </div>
             </div>
              <div className="flex items-center gap-2">
-                <NewItemModal />
                 <Button onClick={onSignOut} variant="outline" size="sm">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
@@ -86,8 +85,6 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           </div>
         </CardHeader>
       </Card>
-
-      <DashboardSummary />
       
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
@@ -97,38 +94,25 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
           <TabsTrigger value="planning">Planning</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
-        <TabsContent value="dashboard" className="space-y-6 mt-6">
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             <GoalsTracker />
-             <EventsDashboard />
-           </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="w-full animate-fade-in shadow-xl">
-                  <CardHeader>
-                    <CardTitle>Recent Transactions</CardTitle>
-                    <CardDescription>A list of your most recent transactions.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <TransactionList />
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="space-y-6">
-                 {userProfile?.role === 'owner' && (
+        <TabsContent value="dashboard" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <DashboardSummary />
                     <Card className="w-full animate-fade-in shadow-xl">
                         <CardHeader>
-                        <CardTitle>Family Management</CardTitle>
-                        <CardDescription>Invite new members to your family.</CardDescription>
+                            <CardTitle>Recent Transactions</CardTitle>
+                            <CardDescription>A list of your most recent transactions.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                        <InviteMembers />
+                            <TransactionList />
                         </CardContent>
                     </Card>
-                 )}
-                 <BudgetTracker />
-              </div>
+                    <BudgetTracker />
+                </div>
+                <div className="space-y-6">
+                    <TransactionFormCard />
+                </div>
             </div>
         </TabsContent>
         <TabsContent value="accounts" className="mt-6">
@@ -138,10 +122,29 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
             <CategoryManagement />
         </TabsContent>
         <TabsContent value="planning" className="mt-6">
-          <EventPlanner />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <GoalsTracker />
+             <EventsDashboard />
+           </div>
+           <div className="mt-6">
+            <EventPlanner />
+           </div>
         </TabsContent>
         <TabsContent value="reports" className="mt-6">
           <FinancialReports />
+        </TabsContent>
+        <TabsContent value="family" className="mt-6">
+             {userProfile?.role === 'owner' && (
+                <Card className="w-full animate-fade-in shadow-xl max-w-md mx-auto">
+                    <CardHeader>
+                    <CardTitle>Family Management</CardTitle>
+                    <CardDescription>Invite new members to your family.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <InviteMembers />
+                    </CardContent>
+                </Card>
+             )}
         </TabsContent>
       </Tabs>
     </div>

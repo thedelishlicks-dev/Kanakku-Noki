@@ -31,15 +31,16 @@ import {
 interface DashboardProps {
   user: User;
   onSignOut: () => void;
+  initialView?: string;
 }
 
 interface UserProfile {
     role?: 'owner' | 'member';
 }
 
-export default function Dashboard({ user, onSignOut }: DashboardProps) {
+export default function Dashboard({ user, onSignOut, initialView = "dashboard" }: DashboardProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(initialView);
   const [showFamilyManagement, setShowFamilyManagement] = useState(false);
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
 
@@ -158,7 +159,7 @@ export default function Dashboard({ user, onSignOut }: DashboardProps) {
         {renderContent()}
       </div>
 
-      <BottomNavigationBar activeView={activeView} setActiveView={handleViewChange} />
+      <BottomNavigationBar />
     </div>
   );
 }

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { AuthFlowLogo } from "../icons/logo";
+import { KanakkuLogo } from "../icons/logo";
 import { Separator } from "../ui/separator";
 
 const formSchema = z.object({
@@ -94,9 +94,9 @@ export default function Onboarding({ user }: OnboardingProps) {
     <div className="mx-auto w-full max-w-md">
       <Card className="w-full animate-fade-in shadow-xl">
         <CardHeader className="space-y-4 text-center">
-          <AuthFlowLogo />
+          <KanakkuLogo />
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-headline">Welcome to AuthFlow</CardTitle>
+            <CardTitle className="text-2xl font-headline">Welcome to Kanakku</CardTitle>
             <CardDescription>Let's get your household set up.</CardDescription>
           </div>
         </CardHeader>

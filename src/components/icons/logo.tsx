@@ -1,10 +1,10 @@
-import { ShieldCheck } from 'lucide-react';
+import { Pocket } from 'lucide-react';
 
-export function AuthFlowLogo() {
+export function KanakkuLogo() {
   return (
     <div className="flex items-center justify-center gap-2 text-primary">
-      <ShieldCheck className="h-8 w-8" />
-      <h1 className="text-2xl font-bold font-headline">AuthFlow</h1>
+      <Pocket className="h-8 w-8" />
+      <h1 className="text-2xl font-bold font-headline">Kanakku</h1>
     </div>
   );
 }

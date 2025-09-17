@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'AuthFlow',
-  description: 'A simple and elegant authentication flow app built with Next.js and Firebase.',
+  title: 'Kanakku',
+  description: 'A simple and elegant financial tracking app built with Next.js and Firebase.',
 };
 
 export default function RootLayout({

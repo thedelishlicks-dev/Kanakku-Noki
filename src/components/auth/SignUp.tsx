@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { AuthFlowLogo } from "../icons/logo";
+import { KanakkuLogo } from "../icons/logo";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -89,7 +90,9 @@ export default function SignUp({ onSwitchToLogin }: SignUpProps) {
   return (
     <Card className="w-full animate-fade-in shadow-xl">
       <CardHeader className="space-y-4 text-center">
-        <AuthFlowLogo />
+        <Link href="/" aria-label="Back to Homepage">
+         <KanakkuLogo />
+        </Link>
         <div className="space-y-1">
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
           <CardDescription>Enter your email below to create your account</CardDescription>

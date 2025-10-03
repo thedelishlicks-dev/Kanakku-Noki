@@ -113,12 +113,8 @@ export default function TransactionForm({ onTransactionCreated }: TransactionFor
   const subcategories = selectedCategory?.subcategories || [];
 
   useEffect(() => {
-    form.reset({
-      ...form.getValues(),
-      amount: 0,
-      categoryId: "",
-      subcategory: "",
-    })
+    form.setValue("categoryId", "");
+    form.setValue("subcategory", "");
   }, [transactionType, form]);
   
   useEffect(() => {
